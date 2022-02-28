@@ -73,7 +73,7 @@ fn main() -> tantivy::Result<()> {
     // multithreaded.
     //
     // Here we give tantivy a budget of `50MB`.
-    // Using a bigger memory_arena for the indexer may increase
+    // Using a bigger heap for the indexer may increase
     // throughput, but 50 MB is already plenty.
     let mut index_writer = index.writer(50_000_000)?;
 
@@ -91,12 +91,12 @@ fn main() -> tantivy::Result<()> {
     old_man_doc.add_text(title, "The Old Man and the Sea");
     old_man_doc.add_text(
         body,
-        "He was an old man who fished alone in a skiff in the Gulf Stream and he had gone \
-         eighty-four days now without taking a fish.",
+        "He was an old man who fished alone in a skiff in the Gulf Stream and \
+         he had gone eighty-four days now without taking a fish.",
     );
 
     // ... and add it to the `IndexWriter`.
-    index_writer.add_document(old_man_doc)?;
+    index_writer.add_document(old_man_doc);
 
     // For convenience, tantivy also comes with a macro to
     // reduce the boilerplate above.
@@ -110,7 +110,7 @@ fn main() -> tantivy::Result<()> {
             fresh and green with every spring, carrying in their lower leaf junctures the \
             debris of the winter’s flooding; and sycamores with mottled, white, recumbent \
             limbs and branches that arch over the pool"
-    ))?;
+    ));
 
     // Multivalued field just need to be repeated.
     index_writer.add_document(doc!(
@@ -120,7 +120,7 @@ fn main() -> tantivy::Result<()> {
              enterprise which you have regarded with such evil forebodings.  I arrived here \
              yesterday, and my first task is to assure my dear sister of my welfare and \
              increasing confidence in the success of my undertaking."
-    ))?;
+    ));
 
     // This is an example, so we will only index 3 documents
     // here. You can check out tantivy's tutorial to index
