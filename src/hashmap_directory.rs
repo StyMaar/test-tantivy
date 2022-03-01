@@ -55,10 +55,13 @@ impl Directory for HashMapDirectory {
     }
 
     fn atomic_write(&self, path: &Path, data: &[u8]) -> std::io::Result<()>{
-        let mut hash_map_directory = self.0.lock().unwrap();
-        let buffer_pointer = hash_map_directory.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new()))));        
-
-        buffer_pointer.0.lock().unwrap().extend_from_slice(data);
+        let buffer_pointer = {
+            let mut hash_map_directory = self.0.lock().unwrap();
+            hash_map_directory.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new())))).clone()
+        };
+        let mut buffer_data = buffer_pointer.0.lock().unwrap();
+        buffer_data.clear();
+        buffer_data.extend_from_slice(data);
         Ok(())
     }
     
@@ -104,3 +107,45 @@ impl FileHandle for HashMapFile {
         Ok(OwnedBytes::new(bytes))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+    use std::path::Path;
+
+    use super::HashMapDirectory;
+    use super::Directory;
+
+    #[test]
+    fn test_persist() {
+        let msg_atomic: &'static [u8] = b"atomic is the way";
+        let msg_seq: &'static [u8] = b"sequential is the way";
+        let path_atomic: &'static Path = Path::new("atomic");
+        let path_seq: &'static Path = Path::new("seq");
+        let directory = HashMapDirectory::new();
+        assert!(directory.atomic_write(path_atomic, msg_atomic).is_ok());
+        let mut wrt = directory.open_write(path_seq).unwrap();
+        assert!(wrt.write_all(msg_seq).is_ok());
+        assert!(wrt.flush().is_ok());
+        assert_eq!(directory.atomic_read(path_atomic).unwrap(), msg_atomic);
+        assert_eq!(directory.atomic_read(path_seq).unwrap(), msg_seq);
+
+        let msg_atomic_2: &'static [u8] = b", maybe";
+        let msg_seq_2: &'static [u8] = b", maybe";
+
+        assert!(directory.atomic_write(path_atomic, msg_atomic_2).is_ok());
+        let mut wrt = directory.open_write(path_seq).unwrap();
+        assert!(wrt.write_all(msg_seq_2).is_ok());
+        assert!(wrt.flush().is_ok());
+        assert_eq!(directory.atomic_read(path_atomic).unwrap(), msg_atomic_2);
+        assert_eq!(directory.atomic_read(path_seq).unwrap(), concat_helper(msg_seq, msg_seq_2));
+    }
+
+    fn concat_helper(a: &[u8], b: &[u8]) -> Vec<u8>{
+        let mut concatenated = Vec::with_capacity(a.len()+b.len());
+        concatenated.extend_from_slice(a);
+        concatenated.extend_from_slice(b);
+        concatenated
+    }
+}
+
