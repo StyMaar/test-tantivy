@@ -72,8 +72,6 @@ fn main() -> tantivy::Result<()> {
 
     let index = Index::builder().schema(schema.clone()).open_or_create(HashMapDirectory::new()).unwrap();
 
-    let index = Index::create_in_dir(&index_path, schema.clone())?;
-
     // To insert a document we will need an index writer.
     // There must be only one writer at a time.
     // This single `IndexWriter` is already
