@@ -849,6 +849,8 @@ dependencies = [
 name = "test-tantivy"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_json",
  "tantivy",
  "tempfile",
 ]

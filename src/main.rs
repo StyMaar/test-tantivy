@@ -14,7 +14,7 @@
 // Importing tantivy...
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
-use tantivy::schema::*;
+use tantivy::{schema::*, directory};
 use tantivy::{doc, Index, ReloadPolicy};
 use tempfile::TempDir;
 
@@ -23,9 +23,8 @@ mod hashmap_directory;
 use hashmap_directory::HashMapDirectory;
 
 fn main() -> tantivy::Result<()> {
-    // Let's create a temporary directory for the
-    // sake of this example
-    let index_path = TempDir::new()?;
+
+    let virtual_directory = HashMapDirectory::new();
 
     // # Defining the schema
     //
@@ -70,7 +69,7 @@ fn main() -> tantivy::Result<()> {
     // This will actually just save a meta.json
     // with our schema in the directory.
 
-    let index = Index::builder().schema(schema.clone()).open_or_create(HashMapDirectory::new()).unwrap();
+    let index = Index::builder().schema(schema.clone()).open_or_create(virtual_directory.clone()).unwrap();
 
     // To insert a document we will need an index writer.
     // There must be only one writer at a time.
@@ -145,6 +144,15 @@ fn main() -> tantivy::Result<()> {
     //
     // This call is blocking.
     index_writer.commit()?;
+
+    let serialized_directory = serde_json::to_string(&virtual_directory).unwrap();
+
+    dbg!(format!("{serialized_directory}"));
+
+    let deserialized_directory: HashMapDirectory = serde_json::from_str(&serialized_directory).unwrap();
+
+    let index = Index::builder().schema(schema.clone()).open_or_create(deserialized_directory).unwrap();
+
 
     // If `.commit()` returns correctly, then all of the
     // documents that have been added are guaranteed to be
