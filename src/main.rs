@@ -18,6 +18,8 @@ use tantivy::schema::*;
 use tantivy::{doc, Index, ReloadPolicy};
 use tempfile::TempDir;
 
+mod hashmap_directory;
+
 fn main() -> tantivy::Result<()> {
     // Let's create a temporary directory for the
     // sake of this example
