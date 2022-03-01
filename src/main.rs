@@ -20,6 +20,8 @@ use tempfile::TempDir;
 
 mod hashmap_directory;
 
+use hashmap_directory::HashMapDirectory;
+
 fn main() -> tantivy::Result<()> {
     // Let's create a temporary directory for the
     // sake of this example
@@ -67,6 +69,9 @@ fn main() -> tantivy::Result<()> {
     //
     // This will actually just save a meta.json
     // with our schema in the directory.
+
+    let index = Index::builder().schema(schema.clone()).open_or_create(HashMapDirectory::new()).unwrap();
+
     let index = Index::create_in_dir(&index_path, schema.clone())?;
 
     // To insert a document we will need an index writer.

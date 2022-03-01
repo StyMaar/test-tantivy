@@ -4,7 +4,13 @@ use tantivy::{Directory, directory::{error::{DeleteError, OpenReadError, OpenWri
 
 
 #[derive(Debug, Clone)]
-struct HashMapDirectory(HashMap<PathBuf, HashMapFile>);
+pub struct HashMapDirectory(Arc<Mutex<HashMap<PathBuf, HashMapFile>>>);
+
+impl HashMapDirectory {
+    pub fn new()-> Self {
+        HashMapDirectory(Arc::new(Mutex::new(HashMap::new())))
+    }
+}
 
 impl Directory for HashMapDirectory {
     fn get_file_handle(
@@ -12,42 +18,35 @@ impl Directory for HashMapDirectory {
         path: &Path
     ) -> Result<Box<dyn FileHandle>, OpenReadError>{
 
-        match self.0.get(path) {
+        match self.0.lock().unwrap().get(path) {
             None => Err(OpenReadError::FileDoesNotExist(path.into())),
             Some(buffer_pointer) => {
                 Ok(Box::new(buffer_pointer.clone()))
             }
         }
     }
-    
+
     fn delete(&self, path: &Path) -> Result<(), DeleteError>{
-        todo!()
-        // match self.0.remove(path) {
-        //     None => Err(DeleteError::FileDoesNotExist(path.into())),
-        //     Some(_) => {
-        //         Ok(())
-        //     }
-        // }
+        match self.0.lock().unwrap().remove(path) {
+            None => Err(DeleteError::FileDoesNotExist(path.into())),
+            Some(_) => {
+                Ok(())
+            }
+        }
     }
     
     fn exists(&self, path: &Path) -> Result<bool, OpenReadError>{
-        Ok(self.0.contains_key(path))
+        Ok(self.0.lock().unwrap().contains_key(path))
     }
     
     fn open_write(&self, path: &Path) -> Result<WritePtr, OpenWriteError>{
-        // let buffer_pointer = self.0.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new()))));
-        
-        match self.0.get(path) {
-            None => todo!(),// need interor mutability on the HashmapDirectory itself
-            Some(buffer_pointer) => {
-                Ok(BufWriter::new(Box::new(buffer_pointer.clone())))
-            }
-        }
-        
+        let mut hash_map_directory = self.0.lock().unwrap();
+        let buffer_pointer = hash_map_directory.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new()))));        
+        Ok(BufWriter::new(Box::new(buffer_pointer.clone())))
     }
     
     fn atomic_read(&self, path: &Path) -> Result<Vec<u8>, OpenReadError>{
-        match self.0.get(path) {
+        match self.0.lock().unwrap().get(path) {
             None => Err(OpenReadError::FileDoesNotExist(path.into())),
             Some(buffer_pointer) => {
                 Ok(buffer_pointer.0.lock().unwrap().clone())
@@ -56,14 +55,11 @@ impl Directory for HashMapDirectory {
     }
 
     fn atomic_write(&self, path: &Path, data: &[u8]) -> std::io::Result<()>{
-        match self.0.get(path) {
-            None => todo!(),// need interor mutability on the HashmapDirectory itself
-            Some(buffer_pointer) => {
-                buffer_pointer.0.lock().unwrap().extend_from_slice(data);
-                Ok(())
-            }
-        }
-        
+        let mut hash_map_directory = self.0.lock().unwrap();
+        let buffer_pointer = hash_map_directory.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new()))));        
+
+        buffer_pointer.0.lock().unwrap().extend_from_slice(data);
+        Ok(())
     }
     
     fn watch(&self, _watch_callback: WatchCallback) -> tantivy::Result<WatchHandle>{
@@ -101,8 +97,8 @@ impl FileHandle for HashMapFile {
 
         let bytes = self.0.lock()
             .unwrap()
-            .get(range)
-            .ok_or(std::io::Error::new(std::io::ErrorKind::Other, "oh no!"))?
+            .get(range.clone())
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, format!("Trying to fetch data out of range: {range:?}")))?
             .to_owned();
 
         Ok(OwnedBytes::new(bytes))
