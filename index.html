@@ -1,0 +1,24 @@
+<html>
+  <head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+  </head>
+  <body>
+    <script type="module">
+      import init, { search } from './pkg/test_tantivy.js';
+
+      async function run() {
+        
+        // modes
+        await init();
+
+        // And afterwards we can use all the functionality defined in wasm.
+        window.search = search;
+
+        const result = search("edge night");
+        console.log(`result = ${result}`);
+      }
+
+      run();
+    </script>
+  </body>
+</html>
