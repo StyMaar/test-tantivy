@@ -4,7 +4,7 @@
   </head>
   <body>
     <script type="module">
-      import init, { search } from './pkg/test_tantivy.js';
+      import init, { search, index } from './pkg/test_tantivy.js';
 
       async function run() {
         
@@ -12,10 +12,11 @@
         await init();
 
         // And afterwards we can use all the functionality defined in wasm.
-        window.search = search;
 
-        const result = search("edge night");
+        let directory = index(); 
+        const result = search("edge night", directory);
         console.log(`result = ${result}`);
+        window.search = (query) => search(query, directory);
       }
 
       run();

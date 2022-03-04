@@ -13,23 +13,13 @@ use std::panic;
 
 
 #[wasm_bindgen]
-pub fn search(query: &str) -> String {
-    
+pub fn index() -> String {
     // pour faire en sorte que les panic! soient bien gérés avec WebAssembly
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     
     let virtual_directory = HashMapDirectory::new();
 
-
-    let mut schema_builder = Schema::builder();
-
-    schema_builder.add_text_field("title", TEXT | STORED);
-    schema_builder.add_text_field("body", TEXT);
-
-    let schema = schema_builder.build();
-
-    let title = schema.get_field("title").unwrap();
-    let body = schema.get_field("body").unwrap();
+    let (schema, title, body) = build_schema();
 
     /////////////////////////////////////////////
 
@@ -87,7 +77,15 @@ until the stars are all alight."
 
     let serialized_directory = serde_json::to_string(&virtual_directory).unwrap();
 
-    let deserialized_directory: HashMapDirectory = serde_json::from_str(&serialized_directory).unwrap();
+    serialized_directory
+}
+
+#[wasm_bindgen]
+pub fn search(query: &str, directory: &str) -> String {
+    
+    let (schema, title, body) = build_schema();
+
+    let deserialized_directory: HashMapDirectory = serde_json::from_str(&directory).unwrap();
 
     let index = Index::builder().schema(schema.clone()).open_or_create(deserialized_directory).unwrap();
 
@@ -111,3 +109,19 @@ until the stars are all alight."
     }
     results_string
 }
+
+fn build_schema()-> (Schema, Field, Field){
+        
+    let mut schema_builder = Schema::builder();
+
+    schema_builder.add_text_field("title", TEXT | STORED);
+    schema_builder.add_text_field("body", TEXT);
+
+    let schema = schema_builder.build();
+
+    let title = schema.get_field("title").unwrap();
+    let body = schema.get_field("body").unwrap();
+
+    (schema, title, body)
+}
+
