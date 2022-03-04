@@ -17,4 +17,4 @@ $ wasm-pack build --target web
 $ python3 -m http.server 8080
 ```
 
-Then go [http://localhost:8080/](http://localhost:8080/), open the dev tools and see the result for yourself in the console.
+Then go [http://localhost:8080/](http://localhost:8080/), open the dev tools and see the result for yourself in the console, using the `search` function (type signature: `search(query: string): string`).
