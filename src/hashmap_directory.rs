@@ -71,6 +71,10 @@ impl Directory for HashMapDirectory {
         Ok(WatchHandle::empty())
     }
 
+    fn sync_directory(&self) -> Result<(), std::io::Error> {
+        Ok(()) 
+    }
+
 }
 
 #[derive(Debug, Clone)]
