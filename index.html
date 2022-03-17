@@ -4,20 +4,32 @@
   </head>
   <body>
     <script type="module">
-      import init, { search, index } from './pkg/test_tantivy.js';
+      import init, { Index, Schema, Document, set_panic_hook } from './pkg/test_tantivy.js';
 
       async function run() {
         
         // modes
         await init();
-
+        set_panic_hook();
         // And afterwards we can use all the functionality defined in wasm.
 
-        let directory = index(); 
-        console.log("(really inefficiently) serialized directory:", directory);
-        const result = search("edge night", directory);
-        console.log(`result = ${result}`);
-        window.search = (query) => search(query, directory);
+        let schema = Schema.new();
+
+        schema.add_stored_field("title");
+        schema.add_field("quote");
+
+        let index = Index.from_schema(schema);
+
+        let LOTR = Document.new();
+        LOTR.add_text("title", "Lord Of The Rings");
+        LOTR.add_text("quote", "And some things that should not have been forgotten were lost. History became legend. Legend became myth. And for two and a half thousand years, the ring passed out of all knowledge.");
+
+        index.add_document(LOTR);
+
+        console.log("searching for: “forgotten”", index.search("forgotten"));
+
+        window.strIndex = index.serialize_index();
+        window.Index = Index;
       }
 
       run();
