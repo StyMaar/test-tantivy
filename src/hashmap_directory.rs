@@ -3,7 +3,35 @@ use std::{path::{Path, PathBuf}, ops::Range, collections::HashMap, sync::{Arc, M
 
 use tantivy::{Directory, directory::{error::{DeleteError, OpenReadError, OpenWriteError}, FileHandle, WritePtr, WatchCallback, WatchHandle, OwnedBytes, TerminatingWrite, AntiCallToken}, TantivyError, HasLen};
 
-use serde::{Serialize,Deserialize, Serializer, Deserializer, de::Visitor};
+use rkyv::{Archive, Deserialize, Serialize};
+use bytecheck::CheckBytes;
+
+#[derive(Debug, Archive, Serialize, Deserialize)]
+// To use the safe API, you have to derive CheckBytes for the archived type
+#[archive_attr(derive(CheckBytes, Debug))]
+pub struct SerializableHashMapDirectory(HashMap<String,Vec<u8>>);
+
+impl From<&HashMapDirectory> for SerializableHashMapDirectory {
+    fn from(value: &HashMapDirectory) -> Self {
+        let hashmap = value.0.lock().unwrap().iter().map(|(path, file)|{
+            let vec = file.0.lock().unwrap().to_owned();
+            let string_path = path.clone().into_os_string().into_string().unwrap();
+            (string_path, vec)
+        }).collect();
+        SerializableHashMapDirectory(hashmap)
+    }
+}
+
+impl Into<HashMapDirectory> for SerializableHashMapDirectory {
+    fn into(self) -> HashMapDirectory {
+        let hashmap = self.0.iter().map(|(path, file)|{
+            let hashmapfile = HashMapFile(Arc::new(Mutex::new(file.to_owned())));
+            let path = Path::new(path).to_owned();
+            (path, hashmapfile)
+        }).collect();
+        HashMapDirectory(Arc::new(Mutex::new(hashmap)))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct HashMapDirectory(Arc<Mutex<HashMap<PathBuf, HashMapFile>>>);
@@ -114,116 +142,6 @@ impl FileHandle for HashMapFile {
     }
 }
 
-impl Serialize for HashMapDirectory {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_newtype_struct("HashMapDirectory", &*self.0.lock().unwrap())
-    }
-}
-
-struct HashMapDirectoryVisitor {
-    marker: PhantomData<fn() -> HashMapDirectory>
-}
-
-impl HashMapDirectoryVisitor {
-    fn new() -> Self {
-        HashMapDirectoryVisitor {
-            marker: PhantomData
-        }
-    }
-}
-
-impl<'de> Visitor<'de> for HashMapDirectoryVisitor
-{
-    // The type that our Visitor is going to produce.
-    type Value = HashMapDirectory;
-
-    // Format a message stating what data this Visitor expects to receive.
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a very special map")
-    }
-
-    fn visit_newtype_struct<D>(
-        self,
-        deserializer: D
-    ) -> Result<Self::Value, D::Error> where
-    D: Deserializer<'de> {
-        Ok(HashMapDirectory(Arc::new(Mutex::new(Deserialize::deserialize(deserializer)?))))
-    }
-
-    
-}
-
-impl<'de> Deserialize<'de> for HashMapDirectory
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // Instantiate our Visitor and ask the Deserializer to drive
-        // it over the input data, resulting in an instance of MyMap.
-        deserializer.deserialize_newtype_struct("HashMapDirectory", HashMapDirectoryVisitor::new())
-    }
-}
-
-
-
-impl Serialize for HashMapFile {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_newtype_struct("HashMapFile", &*self.0.lock().unwrap())
-    }
-}
-
-
-struct HashMapFileVisitor {
-    marker: PhantomData<fn() -> HashMapFile>
-}
-
-impl HashMapFileVisitor {
-    fn new() -> Self {
-        HashMapFileVisitor {
-            marker: PhantomData
-        }
-    }
-}
-
-impl<'de> Visitor<'de> for HashMapFileVisitor
-{
-    // The type that our Visitor is going to produce.
-    type Value = HashMapFile;
-
-    // Format a message stating what data this Visitor expects to receive.
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a very special map")
-    }
-
-    fn visit_newtype_struct<D>(
-        self,
-        deserializer: D
-    ) -> Result<Self::Value, D::Error> where
-    D: Deserializer<'de> {
-        Ok(HashMapFile(Arc::new(Mutex::new(Deserialize::deserialize(deserializer)?))))
-    }
-
-    
-}
-
-impl<'de> Deserialize<'de> for HashMapFile
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // Instantiate our Visitor and ask the Deserializer to drive
-        // it over the input data, resulting in an instance of MyMap.
-        deserializer.deserialize_newtype_struct("HashMapDirectory", HashMapFileVisitor::new())
-    }
-}
 
 #[cfg(test)]
 mod tests {

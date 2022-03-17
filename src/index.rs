@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+
 use tantivy::{
     schema::{
         Schema as TantivySchema,
@@ -13,12 +13,17 @@ use tantivy::{
     ReloadPolicy,
 };
 
-use super::hashmap_directory::HashMapDirectory;
+use rkyv::{Archive, Deserialize, Serialize};
+use bytecheck::CheckBytes;
+
+use super::hashmap_directory::{HashMapDirectory, SerializableHashMapDirectory};
 use wasm_bindgen::prelude::*;
 
 
 #[wasm_bindgen]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Archive, Serialize, Deserialize, Clone)]
+// To use the safe API, you have to derive CheckBytes for the archived type
+#[archive_attr(derive(CheckBytes, Debug))]
 pub struct Schema{
     fields: Vec<String>,
     stored_fields: Vec<String>,
@@ -66,10 +71,12 @@ impl Schema {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Archive, Serialize, Deserialize)]
+// To use the safe API, you have to derive CheckBytes for the archived type
+#[archive_attr(derive(CheckBytes, Debug))]
 struct SerializableIndex {
     schema: Schema,
-    directory: HashMapDirectory,
+    directory: SerializableHashMapDirectory,
 }
 
 #[wasm_bindgen]
@@ -82,11 +89,14 @@ pub struct Index{
 
 #[wasm_bindgen]
 impl Index {
-    pub fn parse_serialized_index(serialized_index: &str)-> Index{
-        let SerializableIndex{schema, directory} = serde_json::from_str(serialized_index).unwrap();
+    pub fn parse_serialized_index(serialized_index: &[u8])-> Index{
+        let archived = rkyv::check_archived_root::<SerializableIndex>(serialized_index).unwrap();
+        let SerializableIndex{schema, directory} = archived.deserialize(&mut rkyv::Infallible).unwrap();
+        let directory: HashMapDirectory = directory.into();
+
         let tantivy_schema = schema.build_schema();
         let tantivy_index = TantivyIndex::builder().schema(tantivy_schema.clone()).open_or_create(directory.clone()).unwrap();
-        Index { tantivy_index, tantivy_schema, schema, directory }
+        Index { tantivy_index, tantivy_schema, schema, directory}
     }
     
     pub fn from_schema(schema: Schema) -> Index{
@@ -97,12 +107,13 @@ impl Index {
         Index { tantivy_index, tantivy_schema, schema, directory }
     }
 
-    pub fn serialize_index(&self) -> String {
+    pub fn serialize_index(&self) -> Vec<u8> {
         let serializable_index = SerializableIndex {
             schema: self.schema.clone(),
-            directory: self.directory.clone(),
+            directory: (&self.directory).into(),
         };
-        serde_json::to_string(&serializable_index).unwrap()
+        let bytes = rkyv::to_bytes::<_, 256>(&serializable_index).unwrap().into_vec();
+        bytes
     }
 
     pub fn add_document(&self, doc: Document){
