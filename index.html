@@ -15,16 +15,58 @@
 
         let schema = Schema.new();
 
-        schema.add_stored_field("title");
-        schema.add_field("quote");
+        let title = 'title';
+        let body = 'quote body'
+
+        schema.add_stored_field(title);
+        schema.add_field(body);
 
         let index = Index.from_schema(schema);
 
         let LOTR = Document.new();
-        LOTR.add_text("title", "Lord Of The Rings");
-        LOTR.add_text("quote", "And some things that should not have been forgotten were lost. History became legend. Legend became myth. And for two and a half thousand years, the ring passed out of all knowledge.");
-
+        LOTR.add_text(title, "Lord Of The Rings");
+        LOTR.add_text(body, "And some things that should not have been forgotten were lost. History became legend. Legend became myth. And for two and a half thousand years, the ring passed out of all knowledge.");
         index.add_document(LOTR);
+
+        let old_man_doc = Document.new();
+        old_man_doc.add_text(title, "The Old Man and the Sea");
+        old_man_doc.add_text(body,`He was an old man who fished alone in a skiff in the Gulf Stream and 
+        he had gone eighty-four days now without taking a fish.`);
+        index.add_document(old_man_doc);
+
+        let mice_men_doc = Document.new();
+        mice_men_doc.add_text(title, "Of Mice and Men");
+        mice_men_doc.add_text(body,  `A few miles south of Soledad, the Salinas River drops in close to the hillside 
+        bank and runs deep and green. The water is warm too, for it has slipped twinkling 
+        over the yellow sands in the sunlight before reaching the narrow pool. On one 
+        side of the river the golden foothill slopes curve up to the strong and rocky 
+        Gabilan Mountains, but on the valley side the water is lined with trees—willows 
+        fresh and green with every spring, carrying in their lower leaf junctures the 
+        debris of the winter’s flooding; and sycamores with mottled, white, recumbent 
+        limbs and branches that arch over the pool`);
+        index.add_document(mice_men_doc);
+
+        let franken_doc = Document.new();
+        franken_doc.add_text(title, "Frankenstein");
+        franken_doc.add_text(title, "The Modern Prometheus");
+        franken_doc.add_text(body, `You will rejoice to hear that no disaster has accompanied the commencement of an 
+        enterprise which you have regarded with such evil forebodings.  I arrived here 
+        yesterday, and my first task is to assure my dear sister of my welfare and 
+        increasing confidence in the success of my undertaking.`);
+        index.add_document(franken_doc);
+
+        let lotr_doc = Document.new();
+        lotr_doc.add_text(title, "Lord of the Rings");
+        lotr_doc.add_text(body, `Home is behind, the world ahead,
+        and there are many paths to tread
+        through shadows to the edge of night,
+        until the stars are all alight`);
+        index.add_document(lotr_doc)
+
+        let lotr2_doc = Document.new();
+        lotr2_doc.add_text(title, "Le seigneur des anneaux")
+        lotr2_doc.add_text(body, "C'est une étrange fatalité que nous devions éprouver tant de peurs et de doutes, pour une si petite chose.")
+        index.add_document(lotr2_doc);
 
         console.log("searching for: “forgotten”", index.search("forgotten"));
 
