@@ -18,8 +18,8 @@
         let title = 'title';
         let body = 'quote body'
 
-        schema.add_stored_field(title);
-        schema.add_field(body);
+        schema.addField(title, {stored: true, text: true});
+        schema.addField(body, {text: true});
 
         let index = Index.fromSchema(schema);
 

@@ -26,3 +26,5 @@ wasm-bindgen = "0.2.79"
 console_error_panic_hook = "0.1.7"
 rkyv = { version = "0.7.36", features = ["validation"] }
 bytecheck = "0.6.7"
+serde-wasm-bindgen = "0.4.2"
+serde = "1.0.136"

@@ -1,11 +1,17 @@
 
+use std::collections::HashMap;
+
 use tantivy::{
     schema::{
         Schema as TantivySchema,
         Document as TantivyDocument,
+        FAST,
+        INDEXED,
+        STRING,
         STORED,
         TEXT,
-    }, 
+        TextOptions,
+    },
     DocAddress,
     Index as TantivyIndex,
     collector::TopDocs,
@@ -14,6 +20,8 @@ use tantivy::{
 };
 
 use rkyv::{Archive, Deserialize, Serialize};
+use serde::{Serialize as SerdeSerialize, Deserialize as SerializeDeserialize};
+
 use bytecheck::CheckBytes;
 
 use super::hashmap_directory::{HashMapDirectory, SerializableHashMapDirectory};
@@ -21,12 +29,23 @@ use wasm_bindgen::prelude::*;
 
 
 #[wasm_bindgen]
-#[derive(Archive, Serialize, Deserialize, Clone)]
+#[derive(Archive, Serialize, Deserialize, Clone, SerdeSerialize, SerializeDeserialize)]
+// To use the safe API, you have to derive CheckBytes for the archived type
+#[archive_attr(derive(CheckBytes, Debug))]
+pub struct FieldOption {
+    fast: Option<bool>,
+    indexed: Option<bool>,
+    string: Option<bool>,
+    stored: Option<bool>,
+    text: Option<bool>,
+} 
+
+#[wasm_bindgen]
+#[derive(Archive, Serialize, Deserialize, Clone, SerdeSerialize, SerializeDeserialize)]
 // To use the safe API, you have to derive CheckBytes for the archived type
 #[archive_attr(derive(CheckBytes, Debug))]
 pub struct Schema{
-    fields: Vec<String>,
-    stored_fields: Vec<String>,
+    fields: HashMap<String, FieldOption>,
 }
 
 #[wasm_bindgen]
@@ -35,40 +54,48 @@ impl Schema {
     #[wasm_bindgen(constructor)]
     pub fn new()-> Schema{
         Schema{
-            fields: Vec::new(),
-            stored_fields: Vec::new(),
+            fields: HashMap::new(),
         }
     }
-
-    pub fn add_field(&mut self, field: &str){
-        self.fields.push(field.to_string());
+    
+    #[wasm_bindgen(js_name = "addField")]
+    pub fn add_field(&mut self, field_name: &str, js_field: JsValue){
+        let field = serde_wasm_bindgen::from_value(js_field).unwrap(); //TODO handle error here
+        self.fields.insert(field_name.to_string(), field);
     }
 
-    pub fn add_stored_field(&mut self, field: &str){
-        self.stored_fields.push(field.to_string());
-    }
 
     fn build_schema(&self)-> TantivySchema{
         let mut schema_builder = TantivySchema::builder();
-        for field in self.fields.iter(){
-            schema_builder.add_text_field(&field, TEXT);
-        }
-        for stored_field in self.stored_fields.iter() {
-            schema_builder.add_text_field(&stored_field, TEXT | STORED);
+        for (field_name, option) in self.fields.iter(){
+            
+            // TODO implement the field options in a way that makes sense
+            let field_option = TextOptions::default();
+            // if Some(true) = option.fast {
+            //     field_option = field_option | FAST;
+            // }
+            // if Some(true) = option.indexed {
+            //     field_option = field_option | INDEXED;
+            // }
+            // if Some(true) = option.string {
+            //     field_option = field_option | STRING;
+            // }
+            // if Some(true) = option.stored {
+            //     field_option = field_option | STORED;
+            // }
+            // if Some(true) = option.text {
+            //     field_option = field_option | TEXT;
+            // }
+
+            schema_builder.add_text_field(field_name, TEXT | STORED);
         }
         let schema = schema_builder.build();
         schema
     }
 
-    fn get_field_names(&self)-> Vec<String>{
-        let mut fields = Vec::new();
-        for field in self.fields.iter(){
-            fields.push(field.clone());
-        }
-        for stored_field in self.stored_fields.iter() {
-            fields.push(stored_field.clone());
-        }
-        fields
+    #[wasm_bindgen(js_name = "getFields")]
+    pub fn get_fields(&self)-> JsValue{
+        serde_wasm_bindgen::to_value(self).unwrap()
     }
 }
 
@@ -137,7 +164,7 @@ impl Index {
             .try_into().unwrap();
 
         let searcher = reader.searcher();
-        let fields = self.schema.get_field_names().iter().map(|field_name| self.tantivy_schema.get_field(&field_name).unwrap()).collect();
+        let fields = self.schema.fields.keys().map(|field_name| self.tantivy_schema.get_field(&field_name).unwrap()).collect();
         let query_parser = QueryParser::for_index(&self.tantivy_index, fields);
         let query = query_parser.parse_query(query).unwrap();
         let top_docs = searcher.search(&query, &TopDocs::with_limit(10)).unwrap();
