@@ -16,7 +16,7 @@ use tantivy::{
     Index as TantivyIndex,
     collector::TopDocs,
     query::QueryParser,
-    ReloadPolicy,
+    ReloadPolicy, IndexWriter as TantivyIndexWriter,
 };
 
 use rkyv::{Archive, Deserialize, Serialize};
@@ -148,12 +148,12 @@ impl Index {
         bytes
     }
 
-    #[wasm_bindgen(js_name = "addDocument")]
-    pub fn add_document(&self, doc: Document){
-        let tantivy_doc = doc.get_tantivy_document(&self.tantivy_schema);
-        let mut index_writer = self.tantivy_index.writer(50_000_000).unwrap(); // TODO est-ce que c'est pertinent de le re-créer à chaque fois
-        index_writer.add_document(tantivy_doc);
-        index_writer.commit().unwrap();// TODO est-ce que c'est pertinent de le re-commiter à chaque fois
+    pub fn writer(self, memory_arena_num_bytes: usize) -> IndexWriter{
+        let writer = self.tantivy_index.writer(memory_arena_num_bytes).unwrap(); // TODO handle error
+        IndexWriter{
+            index: self,
+            writer,
+        }
     }
 
     #[wasm_bindgen(js_name = "search")]
@@ -175,6 +175,27 @@ impl Index {
             results_string.push_str(&self.tantivy_schema.to_json(&retrieved_doc));
         }
         results_string
+    }
+}
+
+#[wasm_bindgen]
+pub struct IndexWriter {
+    index: Index,
+    writer: TantivyIndexWriter,
+}
+
+#[wasm_bindgen]
+impl IndexWriter {
+
+    #[wasm_bindgen(js_name = "addDocument")]
+    pub fn add_document(&mut self, doc: Document){
+        let tantivy_doc = doc.get_tantivy_document(&self.index.tantivy_schema);// TODO est-ce que c'est pertinent de le re-créer à chaque fois
+        self.writer.add_document(tantivy_doc).unwrap(); // TODO handle errors
+    }
+
+    pub fn commit(mut self) -> Index {
+        self.writer.commit().unwrap();// TODO handle errors
+        self.index
     }
 }
 

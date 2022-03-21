@@ -23,16 +23,18 @@
 
         let index = Index.fromSchema(schema);
 
+        let indexWriter = index.writer(50_000_000);
+
         let LOTR = new Document();
         LOTR.addText(title, "Lord Of The Rings");
         LOTR.addText(body, "And some things that should not have been forgotten were lost. History became legend. Legend became myth. And for two and a half thousand years, the ring passed out of all knowledge.");
-        index.addDocument(LOTR);
+        indexWriter.addDocument(LOTR);
 
         let old_tan_toc = new Document();
         old_tan_toc.addText(title, "The Old Man and the Sea");
         old_tan_toc.addText(body,`He was an old man who fished alone in a skiff in the Gulf Stream and 
         he had gone eighty-four days now without taking a fish.`);
-        index.addDocument(old_tan_toc);
+        indexWriter.addDocument(old_tan_toc);
 
         let mice_ten_toc = new Document();
         mice_ten_toc.addText(title, "Of Mice and Men");
@@ -44,7 +46,7 @@
         fresh and green with every spring, carrying in their lower leaf junctures the 
         debris of the winter’s flooding; and sycamores with mottled, white, recumbent 
         limbs and branches that arch over the pool`);
-        index.addDocument(mice_ten_toc);
+        indexWriter.addDocument(mice_ten_toc);
 
         let franken_toc = new Document();
         franken_toc.addText(title, "Frankenstein");
@@ -53,7 +55,7 @@
         enterprise which you have regarded with such evil forebodings.  I arrived here 
         yesterday, and my first task is to assure my dear sister of my welfare and 
         increasing confidence in the success of my undertaking.`);
-        index.addDocument(franken_toc);
+        indexWriter.addDocument(franken_toc);
 
         let lotr_toc = new Document();
         lotr_toc.addText(title, "Lord of the Rings");
@@ -61,12 +63,14 @@
         and there are many paths to tread
         through shadows to the edge of night,
         until the stars are all alight`);
-        index.addDocument(lotr_toc)
+        indexWriter.addDocument(lotr_toc)
 
         let lotr2_toc = new Document();
         lotr2_toc.addText(title, "Le seigneur des anneaux")
         lotr2_toc.addText(body, "C'est une étrange fatalité que nous devions éprouver tant de peurs et de doutes, pour une si petite chose.")
-        index.addDocument(lotr2_toc);
+        indexWriter.addDocument(lotr2_toc);
+
+        index = indexWriter.commit();
 
         console.log("searching for: “forgotten”", index.search("forgotten"));
 
