@@ -70,24 +70,24 @@ impl Schema {
         for (field_name, option) in self.fields.iter(){
             
             // TODO implement the field options in a way that makes sense
-            let field_option = TextOptions::default();
-            // if Some(true) = option.fast {
-            //     field_option = field_option | FAST;
+            let mut field_option = TextOptions::default();
+            // if option.fast.unwrap_or_default() {
+                // field_option = field_option | FAST;
             // }
-            // if Some(true) = option.indexed {
-            //     field_option = field_option | INDEXED;
+            // if option.indexed.unwrap_or_default() {
+                // field_option = field_option | INDEXED;
             // }
-            // if Some(true) = option.string {
-            //     field_option = field_option | STRING;
-            // }
-            // if Some(true) = option.stored {
-            //     field_option = field_option | STORED;
-            // }
-            // if Some(true) = option.text {
-            //     field_option = field_option | TEXT;
-            // }
+            if option.string.unwrap_or_default() {
+                field_option = field_option | STRING;
+            }
+            if option.stored.unwrap_or_default() {
+                field_option = field_option | STORED;
+            }
+            if option.text.unwrap_or_default() {
+                field_option = field_option | TEXT;
+            }
 
-            schema_builder.add_text_field(field_name, TEXT | STORED);
+            schema_builder.add_text_field(field_name, field_option);
         }
         let schema = schema_builder.build();
         schema
