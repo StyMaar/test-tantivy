@@ -32,6 +32,7 @@ pub struct Schema{
 #[wasm_bindgen]
 impl Schema {
 
+    #[wasm_bindgen(constructor)]
     pub fn new()-> Schema{
         Schema{
             fields: Vec::new(),
@@ -42,7 +43,7 @@ impl Schema {
     pub fn add_field(&mut self, field: &str){
         self.fields.push(field.to_string());
     }
-    
+
     pub fn add_stored_field(&mut self, field: &str){
         self.stored_fields.push(field.to_string());
     }
@@ -89,6 +90,8 @@ pub struct Index{
 
 #[wasm_bindgen]
 impl Index {
+
+    #[wasm_bindgen(js_name = "parseSerializedIndex")]
     pub fn parse_serialized_index(serialized_index: &[u8])-> Index{
         let archived = rkyv::check_archived_root::<SerializableIndex>(serialized_index).unwrap();
         let SerializableIndex{schema, directory} = archived.deserialize(&mut rkyv::Infallible).unwrap();
@@ -98,7 +101,8 @@ impl Index {
         let tantivy_index = TantivyIndex::builder().schema(tantivy_schema.clone()).open_or_create(directory.clone()).unwrap();
         Index { tantivy_index, tantivy_schema, schema, directory}
     }
-    
+
+    #[wasm_bindgen(js_name = "fromSchema")]
     pub fn from_schema(schema: Schema) -> Index{
         let directory= HashMapDirectory::new();
         let tantivy_schema = schema.build_schema();
@@ -107,6 +111,7 @@ impl Index {
         Index { tantivy_index, tantivy_schema, schema, directory }
     }
 
+    #[wasm_bindgen(js_name = "serializeIndex")]
     pub fn serialize_index(&self) -> Vec<u8> {
         let serializable_index = SerializableIndex {
             schema: self.schema.clone(),
@@ -116,6 +121,7 @@ impl Index {
         bytes
     }
 
+    #[wasm_bindgen(js_name = "addDocument")]
     pub fn add_document(&self, doc: Document){
         let tantivy_doc = doc.get_tantivy_document(&self.tantivy_schema);
         let mut index_writer = self.tantivy_index.writer(50_000_000).unwrap(); // TODO est-ce que c'est pertinent de le re-créer à chaque fois
@@ -123,6 +129,7 @@ impl Index {
         index_writer.commit().unwrap();// TODO est-ce que c'est pertinent de le re-commiter à chaque fois
     }
 
+    #[wasm_bindgen(js_name = "search")]
     pub fn search(&self, query: &str) -> String {
         let reader = self.tantivy_index
             .reader_builder()
@@ -160,10 +167,12 @@ impl Document{
         doc
     }
 
+    #[wasm_bindgen(constructor)]
     pub fn new()-> Self{
         Document { texts: Vec::new() }
     }
 
+    #[wasm_bindgen(js_name = "addText")]
     pub fn add_text(&mut self, field: &str, data: &str){
         self.texts.push((field.to_string(), data.to_string()));
     }
