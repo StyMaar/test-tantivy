@@ -72,11 +72,14 @@
 
         indexWriter.directorySummary();
 
-        console.log("META BEFORE COMMIT", JSON.parse(indexWriter.getMeta()));
+        console.log("META BEFORE MERGE", JSON.parse(indexWriter.getMeta()));        
+        index = indexWriter.commit();
+        indexWriter = index.writer(50_000_000); // TODO the API isn't good since we need recreate an indexwriter after the commit
         
+        indexWriter.merge();
+        console.log("META AFTER MERGE", JSON.parse(indexWriter.getMeta()));
         index = indexWriter.commit();
         index.directorySummary();
-        console.log("META AFTER COMMIT", JSON.parse(index.getMeta()));
 
         console.log("searching for: “forgotten”", index.search("forgotten"));
 

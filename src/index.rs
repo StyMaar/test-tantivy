@@ -216,6 +216,11 @@ impl IndexWriter {
         self.index
     }
 
+    pub fn merge(&mut self){
+        let searchable_doc_id = self.index.tantivy_index.searchable_segment_ids().unwrap();
+        self.writer.merge(&searchable_doc_id).unwrap();
+    }
+
     #[wasm_bindgen(js_name = "directorySummary")]
     pub fn directory_summary(&self){
         self.index.directory_summary();
