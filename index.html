@@ -70,7 +70,13 @@
         lotr2_toc.addText(body, "C'est une étrange fatalité que nous devions éprouver tant de peurs et de doutes, pour une si petite chose.")
         indexWriter.addDocument(lotr2_toc);
 
+        indexWriter.directorySummary();
+
+        console.log("META BEFORE COMMIT", JSON.parse(indexWriter.getMeta()));
+        
         index = indexWriter.commit();
+        index.directorySummary();
+        console.log("META AFTER COMMIT", JSON.parse(index.getMeta()));
 
         console.log("searching for: “forgotten”", index.search("forgotten"));
 

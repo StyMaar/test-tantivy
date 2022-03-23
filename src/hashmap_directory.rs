@@ -6,6 +6,12 @@ use tantivy::{Directory, directory::{error::{DeleteError, OpenReadError, OpenWri
 use rkyv::{Archive, Deserialize, Serialize};
 use bytecheck::CheckBytes;
 
+use core::fmt::Write as fmtWrite;
+
+use crate::{log, log3};
+use sha1::{Sha1, Digest};
+
+
 #[derive(Debug, Archive, Serialize, Deserialize)]
 // To use the safe API, you have to derive CheckBytes for the archived type
 #[archive_attr(derive(CheckBytes, Debug))]
@@ -36,10 +42,41 @@ impl Into<HashMapDirectory> for SerializableHashMapDirectory {
 #[derive(Debug, Clone)]
 pub struct HashMapDirectory(Arc<Mutex<HashMap<PathBuf, HashMapFile>>>);
 
+fn to_hex_string(a: &[u8]) -> String{
+    let mut s = String::with_capacity(2 * a.len());
+    for byte in a {
+        write!(s, "{:02X}", byte).unwrap();
+    }
+    s
+}
+
+
+
+
+
 impl HashMapDirectory {
     pub fn new()-> Self {
         HashMapDirectory(Arc::new(Mutex::new(HashMap::new())))
     }
+    
+    pub fn summary(&self){
+        log("----- Directory: FILE LIST","");
+        for (path, file) in self.0.lock().unwrap().iter() {
+            let mut hasher = Sha1::new();
+            let content = file.0.lock().unwrap();
+            hasher.update(&*content);
+            let hex = to_hex_string(&hasher.finalize());
+            log3("--------------------------: file", path.to_str().unwrap(), &hex);
+        }
+    }
+    
+    pub fn get_meta(&self)-> String{
+        let lock = self.0.lock().unwrap();
+        let file = lock.get(Path::new("meta.json")).unwrap();
+        let s = std::str::from_utf8(&file.0.lock().unwrap()).unwrap().to_owned();
+        s
+    }
+    
 }
 
 impl Directory for HashMapDirectory {
@@ -48,6 +85,7 @@ impl Directory for HashMapDirectory {
         path: &Path
     ) -> Result<Box<dyn FileHandle>, OpenReadError>{
 
+        log("----- Directory: get_file_handle", path.to_str().unwrap());
         match self.0.lock().unwrap().get(path) {
             None => Err(OpenReadError::FileDoesNotExist(path.into())),
             Some(buffer_pointer) => {
@@ -55,27 +93,33 @@ impl Directory for HashMapDirectory {
             }
         }
     }
-
+    
     fn delete(&self, path: &Path) -> Result<(), DeleteError>{
-        match self.0.lock().unwrap().remove(path) {
+        log("----- Directory: delete", path.to_str().unwrap());
+        let ret = match self.0.lock().unwrap().remove(path) {
             None => Err(DeleteError::FileDoesNotExist(path.into())),
             Some(_) => {
                 Ok(())
             }
-        }
+        };
+        
+        ret
     }
     
     fn exists(&self, path: &Path) -> Result<bool, OpenReadError>{
+        log("----- Directory: exists", path.to_str().unwrap());
         Ok(self.0.lock().unwrap().contains_key(path))
     }
     
     fn open_write(&self, path: &Path) -> Result<WritePtr, OpenWriteError>{
+        log("----- Directory: open_write", path.to_str().unwrap());
         let mut hash_map_directory = self.0.lock().unwrap();
         let buffer_pointer = hash_map_directory.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new()))));        
         Ok(BufWriter::new(Box::new(buffer_pointer.clone())))
     }
     
     fn atomic_read(&self, path: &Path) -> Result<Vec<u8>, OpenReadError>{
+        log("----- Directory: atomic_read", path.to_str().unwrap());
         match self.0.lock().unwrap().get(path) {
             None => Err(OpenReadError::FileDoesNotExist(path.into())),
             Some(buffer_pointer) => {
@@ -83,8 +127,9 @@ impl Directory for HashMapDirectory {
             }
         }
     }
-
+    
     fn atomic_write(&self, path: &Path, data: &[u8]) -> std::io::Result<()>{
+        log("----- Directory: atomic_write", path.to_str().unwrap());
         let buffer_pointer = {
             let mut hash_map_directory = self.0.lock().unwrap();
             hash_map_directory.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new())))).clone()
@@ -96,10 +141,12 @@ impl Directory for HashMapDirectory {
     }
     
     fn watch(&self, _watch_callback: WatchCallback) -> tantivy::Result<WatchHandle>{
+        log("----- Directory: watch", "");
         Ok(WatchHandle::empty())
     }
-
+    
     fn sync_directory(&self) -> Result<(), std::io::Error> {
+        log("----- Directory: sync_directory", "");
         Ok(()) 
     }
 
