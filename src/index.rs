@@ -169,7 +169,8 @@ impl Index {
     
     #[wasm_bindgen(js_name = "getMeta")]
     pub fn get_meta(&self)-> String{
-        self.directory.get_meta()
+        // self.directory.get_meta()
+        todo!()
     }
 
     #[wasm_bindgen(js_name = "search")]

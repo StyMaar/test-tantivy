@@ -1,7 +1,7 @@
 use core::fmt;
-use std::{path::{Path, PathBuf}, ops::Range, collections::HashMap, sync::{Arc, Mutex}, io::{BufWriter, Write}, marker::PhantomData};
+use std::{path::{Path, PathBuf}, ops::Range, collections::{HashMap}, sync::{Arc, Mutex}, io::{BufWriter, Write}, marker::PhantomData, mem};
 
-use tantivy::{Directory, directory::{error::{DeleteError, OpenReadError, OpenWriteError}, FileHandle, WritePtr, WatchCallback, WatchHandle, OwnedBytes, TerminatingWrite, AntiCallToken}, TantivyError, HasLen};
+use tantivy::{Directory, directory::{error::{DeleteError, OpenReadError, OpenWriteError}, FileHandle, WritePtr, WatchCallback, WatchHandle, OwnedBytes, TerminatingWrite, AntiCallToken, self}, TantivyError, HasLen};
 
 use rkyv::{Archive, Deserialize, Serialize};
 use bytecheck::CheckBytes;
@@ -59,24 +59,51 @@ impl HashMapDirectory {
         HashMapDirectory(Arc::new(Mutex::new(HashMap::new())))
     }
     
+    pub fn agregate(&mut self, directory: HashMapDirectory){
+        
+        let remote_directory_inner_map = mem::replace(&mut *directory.0.lock().unwrap(), HashMap::new());
+        let mut self_inner_map = self.0.lock().unwrap();
+
+        for (path, file) in remote_directory_inner_map {
+            if path != Path::new("meta.json") {
+                self_inner_map.insert(path, file);
+            }
+        }
+    }
+
+    pub fn remove_directory(&mut self, directory: HashMapDirectory){
+        let remote_directory_inner_map = directory.0.lock().unwrap();
+        let mut self_inner_map = self.0.lock().unwrap();
+
+        for (path, _) in remote_directory_inner_map.iter() {
+            if path != Path::new("meta.json") {
+                self_inner_map.remove(path);
+            }
+        }
+    }
+
     pub fn summary(&self){
         log("----- Directory: FILE LIST","");
         for (path, file) in self.0.lock().unwrap().iter() {
-            let mut hasher = Sha1::new();
-            let content = file.0.lock().unwrap();
-            hasher.update(&*content);
-            let hex = to_hex_string(&hasher.finalize());
-            log3("--------------------------: file", path.to_str().unwrap(), &hex);
+            if path == Path::new("meta.json") {
+                let file_content = file.0.lock().unwrap();
+                let file_str = std::str::from_utf8(&file_content).unwrap();
+                log("--------------------------: meta.json", file_str);
+            }else{
+                let mut hasher = Sha1::new();
+                let content = file.0.lock().unwrap();
+                hasher.update(&*content);
+                let hex = to_hex_string(&hasher.finalize());
+                log3("--------------------------: file", path.to_str().unwrap(), &hex);
+            }
         }
     }
     
-    pub fn get_meta(&self)-> String{
+    fn get_meta(&self)-> HashMapFile{
         let lock = self.0.lock().unwrap();
-        let file = lock.get(Path::new("meta.json")).unwrap();
-        let s = std::str::from_utf8(&file.0.lock().unwrap()).unwrap().to_owned();
-        s
+        let file = lock.get(Path::new("meta.json")).expect("There must be a meta.json file in a directory").clone();
+        file
     }
-    
 }
 
 impl Directory for HashMapDirectory {

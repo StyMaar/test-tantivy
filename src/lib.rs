@@ -6,6 +6,8 @@ mod new_api;
 pub use index::{Schema, Index, Document};
 pub use utils::set_panic_hook;
 
+pub use new_api::{SegmentBuilder, Segment, SearchIndex};
+
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

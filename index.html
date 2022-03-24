@@ -4,7 +4,7 @@
   </head>
   <body>
     <script type="module">
-      import init, { Index, Schema, Document, set_panic_hook } from './pkg/test_tantivy.js';
+      import init, { SegmentBuilder, Segment, SearchIndex, set_panic_hook } from './pkg/test_tantivy.js';
 
       async function run() {
         
@@ -13,78 +13,77 @@
         set_panic_hook();
         // And afterwards we can use all the functionality defined in wasm.
 
-        let schema = new Schema();
+        const schema = {
+          body: { text: true },
+          title: { stored: true, text: true },
+        };
 
-        let title = 'title';
-        let body = 'quote body'
+        const segmentBuilder = new SegmentBuilder(schema, 50_000_000); 
 
-        schema.addField(title, {stored: true, text: true});
-        schema.addField(body, {text: true});
 
-        let index = Index.fromSchema(schema);
+        segmentBuilder.addDocument({
+          title: "Lord Of The Rings",
+          body: "And some things that should not have been forgotten were lost. History became legend. Legend became myth. And for two and a half thousand years, the ring passed out of all knowledge.",
+        });
 
-        let indexWriter = index.writer(50_000_000);
-
-        let LOTR = new Document();
-        LOTR.addText(title, "Lord Of The Rings");
-        LOTR.addText(body, "And some things that should not have been forgotten were lost. History became legend. Legend became myth. And for two and a half thousand years, the ring passed out of all knowledge.");
-        indexWriter.addDocument(LOTR);
-
-        let old_tan_toc = new Document();
-        old_tan_toc.addText(title, "The Old Man and the Sea");
-        old_tan_toc.addText(body,`He was an old man who fished alone in a skiff in the Gulf Stream and 
-        he had gone eighty-four days now without taking a fish.`);
-        indexWriter.addDocument(old_tan_toc);
-
-        let mice_ten_toc = new Document();
-        mice_ten_toc.addText(title, "Of Mice and Men");
-        mice_ten_toc.addText(body,  `A few miles south of Soledad, the Salinas River drops in close to the hillside 
-        bank and runs deep and green. The water is warm too, for it has slipped twinkling 
-        over the yellow sands in the sunlight before reaching the narrow pool. On one 
-        side of the river the golden foothill slopes curve up to the strong and rocky 
-        Gabilan Mountains, but on the valley side the water is lined with trees—willows 
-        fresh and green with every spring, carrying in their lower leaf junctures the 
-        debris of the winter’s flooding; and sycamores with mottled, white, recumbent 
-        limbs and branches that arch over the pool`);
-        indexWriter.addDocument(mice_ten_toc);
-
-        let franken_toc = new Document();
-        franken_toc.addText(title, "Frankenstein");
-        franken_toc.addText(title, "The Modern Prometheus");
-        franken_toc.addText(body, `You will rejoice to hear that no disaster has accompanied the commencement of an 
-        enterprise which you have regarded with such evil forebodings.  I arrived here 
-        yesterday, and my first task is to assure my dear sister of my welfare and 
-        increasing confidence in the success of my undertaking.`);
-        indexWriter.addDocument(franken_toc);
-
-        let lotr_toc = new Document();
-        lotr_toc.addText(title, "Lord of the Rings");
-        lotr_toc.addText(body, `Home is behind, the world ahead,
-        and there are many paths to tread
-        through shadows to the edge of night,
-        until the stars are all alight`);
-        indexWriter.addDocument(lotr_toc)
-
-        let lotr2_toc = new Document();
-        lotr2_toc.addText(title, "Le seigneur des anneaux")
-        lotr2_toc.addText(body, "C'est une étrange fatalité que nous devions éprouver tant de peurs et de doutes, pour une si petite chose.")
-        indexWriter.addDocument(lotr2_toc);
-
-        indexWriter.directorySummary();
-
-        console.log("META BEFORE MERGE", JSON.parse(indexWriter.getMeta()));        
-        index = indexWriter.commit();
-        indexWriter = index.writer(50_000_000); // TODO the API isn't good since we need recreate an indexwriter after the commit
+        segmentBuilder.addDocument({
+          title:  "The Old Man and the Sea",
+          body: `He was an old man who fished alone in a skiff in the Gulf Stream and 
+          he had gone eighty-four days now without taking a fish.`,
+        });
+        segmentBuilder.addDocument({
+          title: "Of Mice and Men",
+          body:  `A few miles south of Soledad, the Salinas River drops in close to the hillside 
+          bank and runs deep and green. The water is warm too, for it has slipped twinkling 
+          over the yellow sands in the sunlight before reaching the narrow pool. On one 
+          side of the river the golden foothill slopes curve up to the strong and rocky 
+          Gabilan Mountains, but on the valley side the water is lined with trees—willows 
+          fresh and green with every spring, carrying in their lower leaf junctures the 
+          debris of the winter’s flooding; and sycamores with mottled, white, recumbent 
+          limbs and branches that arch over the pool`,
+        });
+        segmentBuilder.addDocument({
+          title: "Frankenstein",
+          // title: "The Modern Prometheus", TODO: on ne supporte plus ce cas là
+          body: `You will rejoice to hear that no disaster has accompanied the commencement of an 
+          enterprise which you have regarded with such evil forebodings.  I arrived here 
+          yesterday, and my first task is to assure my dear sister of my welfare and 
+          increasing confidence in the success of my undertaking.`,
+          
+        });
         
-        indexWriter.merge();
-        console.log("META AFTER MERGE", JSON.parse(indexWriter.getMeta()));
-        index = indexWriter.commit();
-        index.directorySummary();
+        segmentBuilder.addDocument({
+          title: "Le seigneur des anneaux",
+          body: "C'est une étrange fatalité que nous devions éprouver tant de peurs et de doutes, pour une si petite chose.",
+        });
+        
+        let segment = segmentBuilder.finalize();
 
-        console.log("searching for: “forgotten”", index.search("forgotten"));
 
-        window.strIndex = index.serializeIndex();
-        window.Index = Index;
+        const segmentBuilder2 = new SegmentBuilder(schema, 50_000_000); 
+
+        segmentBuilder2.addDocument({
+          title: "Lord of the Rings",
+          body: `Home is behind, the world ahead,
+          and there are many paths to tread
+          through shadows to the edge of night,
+          until the stars are all alight`,
+          
+        });
+
+        let segment2 = segmentBuilder2.finalize();
+
+        const searchIndex = new SearchIndex();
+        console.error("EMPTY")
+        searchIndex.directorySummary();
+        searchIndex.registerSegment(segment);
+        console.error("FIRST")
+        searchIndex.directorySummary();
+        searchIndex.registerSegment(segment2);
+        console.error("SECOND")
+        searchIndex.directorySummary();
+        let results = searchIndex.search('the', {fields: ['title'], limit: 10});
+        console.log(results)
       }
 
       run();
