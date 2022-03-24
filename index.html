@@ -4,7 +4,7 @@
   </head>
   <body>
     <script type="module">
-      import init, { SegmentBuilder, Segment, SearchIndex, set_panic_hook } from './pkg/test_tantivy.js';
+      import init, { SegmentBuilder, Segment, SearchIndex, set_panic_hook, Merger } from './pkg/test_tantivy.js';
 
       async function run() {
         
@@ -73,17 +73,29 @@
 
         let segment2 = segmentBuilder2.finalize();
 
+        let merger = new Merger();
+        merger.addSegment(segment);
+        merger.addSegment(segment2);
+
+        let mergedSegment = merger.merge();
+
         const searchIndex = new SearchIndex();
-        console.error("EMPTY")
-        searchIndex.directorySummary();
-        searchIndex.registerSegment(segment);
-        console.error("FIRST")
-        searchIndex.directorySummary();
-        searchIndex.registerSegment(segment2);
-        console.error("SECOND")
+        searchIndex.registerSegment(mergedSegment);
         searchIndex.directorySummary();
         let results = searchIndex.search('the', {fields: ['title'], limit: 10});
         console.log(results)
+
+        // const searchIndex = new SearchIndex();
+        // console.error("EMPTY")
+        // searchIndex.directorySummary();
+        // searchIndex.registerSegment(segment);
+        // console.error("FIRST")
+        // searchIndex.directorySummary();
+        // searchIndex.registerSegment(segment2);
+        // console.error("SECOND")
+        // searchIndex.directorySummary();
+        // let results = searchIndex.search('the', {fields: ['title'], limit: 10});
+        // console.log(results)
       }
 
       run();

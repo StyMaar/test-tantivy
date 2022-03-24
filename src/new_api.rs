@@ -252,6 +252,46 @@ struct SearchOption{
     limit: usize,
 }
 
+#[wasm_bindgen]
+pub struct Merger{
+    // we use a SearchIndex here because we want to reuse the segment merging mechanism. TODO: refactor to remove this strange dependency
+    search_index: SearchIndex,
+    added_segments: usize,
+}
 
+#[wasm_bindgen]
+impl Merger{
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Merger {
+        Merger{search_index: SearchIndex::new(), added_segments: 0}
+    }
 
+    #[wasm_bindgen(js_name = "addSegment")]
+    pub fn add_segment(&mut self, segment: Segment){
+        self.search_index.register_segment(segment);
+        self.added_segments +=1;
+    }
 
+    pub fn merge(self) -> Segment {
+        match self.added_segments{
+            0 => panic!("Cannot merge empty segments"),
+            1 => {
+                Segment{
+                    directory: self.search_index.directory.unwrap()
+                }
+            },
+            _ => {
+                // we need to create a TantivyIndex, to create a writer in order to perform the merge.
+                let tantivy_index = TantivyIndex::open_from_dir(self.search_index.directory.clone().unwrap()).unwrap();
+                let mut writer = tantivy_index.writer(50_000_000).unwrap();
+                let searchable_doc_id = writer.index().searchable_segment_ids().unwrap();
+                writer.merge(&searchable_doc_id).unwrap();
+                writer.commit().unwrap();
+
+                Segment{
+                    directory: self.search_index.directory.unwrap()
+                }
+            }
+        }
+    } 
+}
