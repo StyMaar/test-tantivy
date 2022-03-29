@@ -165,8 +165,8 @@ impl SearchIndex {
     pub fn register_segment(&mut self, segment: Segment)-> Result<(), String>{
 
         if let Some(ref mut directory) = self.directory {
-            let this_index = TantivyIndex::open_from_dir(directory.clone()).map_err(|err| err.to_string())?;
-            let index_to_add = TantivyIndex::open_from_dir(segment.directory.clone()).map_err(|err| err.to_string())?;
+            let this_index = TantivyIndex::open(directory.clone()).map_err(|err| err.to_string())?;
+            let index_to_add = TantivyIndex::open(segment.directory.clone()).map_err(|err| err.to_string())?;
 
             let mut this_meta = this_index.load_metas().map_err(|err| err.to_string())?;
             let segments_to_add = index_to_add.load_metas().map_err(|err| err.to_string())?.segments;
@@ -192,8 +192,8 @@ impl SearchIndex {
     pub fn remove_segment(&mut self, segment: Segment)-> Result<(), String>{
 
         if let Some(ref mut directory) = self.directory {
-            let this_index = TantivyIndex::open_from_dir(directory.clone()).map_err(|err| err.to_string())?;
-            let index_to_remove = TantivyIndex::open_from_dir(segment.directory.clone()).map_err(|err| err.to_string())?;
+            let this_index = TantivyIndex::open(directory.clone()).map_err(|err| err.to_string())?;
+            let index_to_remove = TantivyIndex::open(segment.directory.clone()).map_err(|err| err.to_string())?;
     
             let mut this_meta = this_index.load_metas().map_err(|err| err.to_string())?;
             let segments_to_remove = &index_to_remove.load_metas().map_err(|err| err.to_string())?.segments;
@@ -212,7 +212,7 @@ impl SearchIndex {
     pub fn search(&self, query: &str, js_option: JsValue)-> Result<JsValue, String>{
         let option: SearchOption = serde_wasm_bindgen::from_value(js_option).map_err(|err| err.to_string())?;
         if let Some(ref directory) = self.directory {
-            let index = TantivyIndex::open_from_dir(directory.clone()).map_err(|err| err.to_string())?;
+            let index = TantivyIndex::open(directory.clone()).map_err(|err| err.to_string())?;
             let reader = index
                 .reader_builder()
                 .reload_policy(ReloadPolicy::Manual)
@@ -300,7 +300,7 @@ impl Merger{
                 // we need to create a TantivyIndex, to create a writer in order to perform the merge.
                 let directory = self.search_index.directory.ok_or_else(||{WasmInterfaceError::EmptyDirectory.to_string()})?;
 
-                let tantivy_index = TantivyIndex::open_from_dir(directory.clone()).map_err(|err| err.to_string())?;
+                let tantivy_index = TantivyIndex::open(directory.clone()).map_err(|err| err.to_string())?;
                 let mut writer = tantivy_index.writer(50_000_000).map_err(|err| err.to_string())?;
                 let searchable_doc_id = writer.index().searchable_segment_ids().map_err(|err| err.to_string())?;
                 writer.merge(&searchable_doc_id).map_err(|err| err.to_string())?;
