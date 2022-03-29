@@ -16,7 +16,7 @@ use tantivy::{
         STRING,
         STORED,
         TEXT,
-        TextOptions, Field,
+        TextOptions, Field, NamedFieldDocument,
     },
     DocAddress,
     Index as TantivyIndex,
@@ -53,6 +53,10 @@ impl SegmentBuilder {
     #[wasm_bindgen(constructor)]
     pub fn new(js_schema: JsValue, memory_arena_num_bytes: usize) -> Result<SegmentBuilder, String>{
         let schema: Schema = serde_wasm_bindgen::from_value(js_schema).map_err(|err| err.to_string())?;
+        SegmentBuilder::new_inner(schema, memory_arena_num_bytes)
+    }
+
+    fn new_inner(schema: Schema, memory_arena_num_bytes: usize) -> Result<SegmentBuilder, String>{
         let mut schema_builder = TantivySchema::builder();
 
         for (field_name, option) in schema.iter(){
@@ -87,9 +91,15 @@ impl SegmentBuilder {
             directory,
         })
     }
+
     #[wasm_bindgen(js_name = "addDocument")]
     pub fn add_document(&mut self, js_doc: JsValue) -> Result<(), String>{
         let doc : Document = serde_wasm_bindgen::from_value(js_doc).map_err(|err| err.to_string())?;
+
+        self.add_document_inner(doc)
+    }
+
+    fn add_document_inner(&mut self, doc: Document) -> Result<(), String>{
 
         let mut tantivy_doc = TantivyDocument::default();
         for (field_name, data) in doc {
@@ -217,6 +227,12 @@ impl SearchIndex {
     // -> SearchResult
     pub fn search(&self, query: &str, js_option: JsValue)-> Result<JsValue, String>{
         let option: SearchOption = serde_wasm_bindgen::from_value(js_option).map_err(|err| err.to_string())?;
+
+        let results = self.search_inner(query, option)?;
+        let serializer = Serializer::new().serialize_maps_as_objects(true);
+        Ok(results.serialize(&serializer).map_err(|err| err.to_string())?)
+    }
+    fn search_inner(&self, query: &str, option: SearchOption)-> Result<SearchResult, String>{
         if let Some(ref directory) = self.directory {
             let index = TantivyIndex::open(directory.clone()).map_err(|err| err.to_string())?;
             let reader = index
@@ -245,9 +261,7 @@ impl SearchIndex {
                                             .map_err(|err| err.to_string())?;
                 results.push(index.schema().to_named_doc(&retrieved_doc));
             }
-
-            let serializer = Serializer::new().serialize_maps_as_objects(true);
-            Ok(results.serialize(&serializer).map_err(|err| err.to_string())?)
+            Ok(results)
         }else{
             Err(WasmInterfaceError::EmptyDirectory.to_string())
         }
@@ -263,7 +277,7 @@ impl SearchIndex {
 
 
 
-type SearchResult= Vec<Document>;
+type SearchResult= Vec<NamedFieldDocument>;
 
 #[derive(Serialize, Deserialize)]
 struct SearchOption{
