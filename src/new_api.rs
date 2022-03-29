@@ -27,7 +27,7 @@ use tantivy::{
 
 use crate::hashmap_directory::{HashMapDirectory, SerializableHashMapDirectory};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 // Note: we must keep an Option<bool> for each field because serde(default) doesn't work with serde_wasm_bindgen: https://github.com/cloudflare/serde-wasm-bindgen/issues/20
 struct FieldPRoperties {
     fast: Option<bool>,
@@ -332,4 +332,56 @@ impl Merger{
             }
         }
     } 
+}
+
+#[cfg(test)]
+mod test{
+    use common_macros::hash_map;
+
+    use crate::{SegmentBuilder, SearchIndex};
+
+    use super::{FieldPRoperties, SearchOption};
+
+    #[test]
+    fn simple_search(){
+        let schema = hash_map! {
+                "id".to_string() => FieldPRoperties{text: Some(true), ..Default::default()},
+                "body".to_string() => FieldPRoperties{text: Some(true), ..Default::default()},
+                "title".to_string() => FieldPRoperties{text: Some(true), stored: Some(true), ..Default::default()},
+            };
+
+        let mut segment_builder = SegmentBuilder::new_inner(schema, 50_000_000).unwrap(); 
+
+        segment_builder.add_document_inner(hash_map! {
+          "id".to_string() => "0".to_string(),
+          "title".to_string() => "Lord Of The Rings".to_string(),
+          "body".to_string() => "And some things that should not have been forgotten were lost. History became legend. Legend became myth. And for two and a half thousand years, the ring passed out of all knowledge.".to_string(),
+        }).unwrap();
+        segment_builder.add_document_inner(hash_map! {
+          "id".to_string() => "1".to_string(),
+          "title".to_string() =>  "The Old Man and the Sea".to_string(),
+          "body".to_string() => r#"He was an old man who fished alone in a skiff in the Gulf Stream and 
+          he had gone eighty-four days now without taking a fish."#.to_string(),
+        }).unwrap();
+        segment_builder.add_document_inner(hash_map! {
+          "id".to_string() => "2".to_string(),
+          "title".to_string() => "Frankenstein".to_string(),
+          "body".to_string() => r#"You will rejoice to hear that no disaster has accompanied the commencement of an 
+          enterprise which you have regarded with such evil forebodings.  I arrived here 
+          yesterday, and my first task is to assure my dear sister of my welfare and 
+          increasing confidence in the success of my undertaking."#.to_string(),
+          
+        }).unwrap();
+
+        let segment = segment_builder.finalize().unwrap();
+
+        let mut search_index = SearchIndex::new();
+        search_index.register_segment(segment).unwrap();
+
+        let results = search_index.search_inner("the", SearchOption{fields: vec!["title".to_string()], limit: 10}).unwrap();
+        assert_eq!(2, results.len());
+        let results = search_index.search_inner("the", SearchOption{fields: vec!["body".to_string()], limit: 10}).unwrap();
+        assert_eq!(3, results.len());
+    }
+
 }
