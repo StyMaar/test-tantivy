@@ -22,7 +22,7 @@ use tantivy::{
     Index as TantivyIndex,
     collector::TopDocs,
     query::QueryParser,
-    ReloadPolicy, IndexWriter as TantivyIndexWriter, Directory,
+    ReloadPolicy, IndexWriter as TantivyIndexWriter, Directory, Term,
 };
 
 use crate::hashmap_directory::{HashMapDirectory, SerializableHashMapDirectory};
@@ -102,8 +102,14 @@ impl SegmentBuilder {
     }
 
     #[wasm_bindgen(js_name = "removeDocuments")]
-    pub fn remove_documents(&self){
-        todo!()
+    pub fn remove_documents(&mut self, key_field: &str, key: &str)-> Result<(), String>{
+        let field = self.writer.index().schema().get_field(&key_field).ok_or_else(||{WasmInterfaceError::InvalidField(key_field.to_string()).to_string()})?;
+
+        let term = Term::from_field_text(field, key);
+        self.writer.delete_term(term.clone());
+        self.writer.commit().map_err(|err| err.to_string())?;
+
+        Ok(())
     }
     pub fn finalize(mut self) -> Result<Segment, String> {
         self.writer.commit().map_err(|err| err.to_string())?;
