@@ -19,9 +19,9 @@ pub struct SerializableHashMapDirectory(HashMap<String,Vec<u8>>);
 
 impl From<&HashMapDirectory> for SerializableHashMapDirectory {
     fn from(value: &HashMapDirectory) -> Self {
-        let hashmap = value.0.lock().unwrap().iter().map(|(path, file)|{
-            let vec = file.0.lock().unwrap().to_owned();
-            let string_path = path.clone().into_os_string().into_string().unwrap();
+        let hashmap = value.0.lock().expect("Taking the lock should always work").iter().map(|(path, file)|{
+            let vec = file.0.lock().expect("Taking the lock should always work").to_owned();
+            let string_path = path.clone().into_os_string().into_string().expect("Converting the path to utf-8 string should never fail");
             (string_path, vec)
         }).collect();
         SerializableHashMapDirectory(hashmap)
@@ -45,7 +45,7 @@ pub struct HashMapDirectory(Arc<Mutex<HashMap<PathBuf, HashMapFile>>>);
 fn to_hex_string(a: &[u8]) -> String{
     let mut s = String::with_capacity(2 * a.len());
     for byte in a {
-        write!(s, "{:02X}", byte).unwrap();
+        write!(s, "{:02X}", byte).expect("writing to the hex string should never fail");
     }
     s
 }
@@ -61,8 +61,8 @@ impl HashMapDirectory {
     
     pub fn agregate(&mut self, directory: HashMapDirectory){
         
-        let remote_directory_inner_map = mem::replace(&mut *directory.0.lock().unwrap(), HashMap::new());
-        let mut self_inner_map = self.0.lock().unwrap();
+        let remote_directory_inner_map = mem::replace(&mut *directory.0.lock().expect("Taking the lock should always work"), HashMap::new());
+        let mut self_inner_map = self.0.lock().expect("Taking the lock should always work");
 
         for (path, file) in remote_directory_inner_map {
             if path != Path::new("meta.json") {
@@ -72,8 +72,8 @@ impl HashMapDirectory {
     }
 
     pub fn remove_directory(&mut self, directory: HashMapDirectory){
-        let remote_directory_inner_map = directory.0.lock().unwrap();
-        let mut self_inner_map = self.0.lock().unwrap();
+        let remote_directory_inner_map = directory.0.lock().expect("Taking the lock should always work");
+        let mut self_inner_map = self.0.lock().expect("Taking the lock should always work");
 
         for (path, _) in remote_directory_inner_map.iter() {
             if path != Path::new("meta.json") {
@@ -84,23 +84,23 @@ impl HashMapDirectory {
 
     pub fn summary(&self){
         log("----- Directory: FILE LIST","");
-        for (path, file) in self.0.lock().unwrap().iter() {
+        for (path, file) in self.0.lock().expect("Taking the lock should always work").iter() {
             if path == Path::new("meta.json") {
-                let file_content = file.0.lock().unwrap();
-                let file_str = std::str::from_utf8(&file_content).unwrap();
+                let file_content = file.0.lock().expect("Taking the lock should always work");
+                let file_str = std::str::from_utf8(&file_content).expect("Converting the meta.json file to utf-8 string should never fail");
                 log("--------------------------: meta.json", file_str);
             }else{
                 let mut hasher = Sha1::new();
-                let content = file.0.lock().unwrap();
+                let content = file.0.lock().expect("Taking the lock should always work");
                 hasher.update(&*content);
                 let hex = to_hex_string(&hasher.finalize());
-                log3("--------------------------: file", path.to_str().unwrap(), &hex);
+                log3("--------------------------: file", path.to_str().expect("Converting the path to utf-8 string should never fail"), &hex);
             }
         }
     }
     
     fn get_meta(&self)-> HashMapFile{
-        let lock = self.0.lock().unwrap();
+        let lock = self.0.lock().expect("Taking the lock should always work");
         let file = lock.get(Path::new("meta.json")).expect("There must be a meta.json file in a directory").clone();
         file
     }
@@ -112,8 +112,8 @@ impl Directory for HashMapDirectory {
         path: &Path
     ) -> Result<Box<dyn FileHandle>, OpenReadError>{
 
-        log("----- Directory: get_file_handle", path.to_str().unwrap());
-        match self.0.lock().unwrap().get(path) {
+        log("----- Directory: get_file_handle", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        match self.0.lock().expect("Taking the lock should always work").get(path) {
             None => Err(OpenReadError::FileDoesNotExist(path.into())),
             Some(buffer_pointer) => {
                 Ok(Box::new(buffer_pointer.clone()))
@@ -122,8 +122,8 @@ impl Directory for HashMapDirectory {
     }
     
     fn delete(&self, path: &Path) -> Result<(), DeleteError>{
-        log("----- Directory: delete", path.to_str().unwrap());
-        let ret = match self.0.lock().unwrap().remove(path) {
+        log("----- Directory: delete", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        let ret = match self.0.lock().expect("Taking the lock should always work").remove(path) {
             None => Err(DeleteError::FileDoesNotExist(path.into())),
             Some(_) => {
                 Ok(())
@@ -134,34 +134,34 @@ impl Directory for HashMapDirectory {
     }
     
     fn exists(&self, path: &Path) -> Result<bool, OpenReadError>{
-        log("----- Directory: exists", path.to_str().unwrap());
-        Ok(self.0.lock().unwrap().contains_key(path))
+        log("----- Directory: exists", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        Ok(self.0.lock().expect("Taking the lock should always work").contains_key(path))
     }
     
     fn open_write(&self, path: &Path) -> Result<WritePtr, OpenWriteError>{
-        log("----- Directory: open_write", path.to_str().unwrap());
-        let mut hash_map_directory = self.0.lock().unwrap();
+        log("----- Directory: open_write", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        let mut hash_map_directory = self.0.lock().expect("Taking the lock should always work");
         let buffer_pointer = hash_map_directory.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new()))));        
         Ok(BufWriter::new(Box::new(buffer_pointer.clone())))
     }
     
     fn atomic_read(&self, path: &Path) -> Result<Vec<u8>, OpenReadError>{
-        log("----- Directory: atomic_read", path.to_str().unwrap());
-        match self.0.lock().unwrap().get(path) {
+        log("----- Directory: atomic_read", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        match self.0.lock().expect("Taking the lock should always work").get(path) {
             None => Err(OpenReadError::FileDoesNotExist(path.into())),
             Some(buffer_pointer) => {
-                Ok(buffer_pointer.0.lock().unwrap().clone())
+                Ok(buffer_pointer.0.lock().expect("Taking the lock should always work").clone())
             }
         }
     }
     
     fn atomic_write(&self, path: &Path, data: &[u8]) -> std::io::Result<()>{
-        log("----- Directory: atomic_write", path.to_str().unwrap());
+        log("----- Directory: atomic_write", path.to_str().expect("Converting the path to utf-8 string should never fail"));
         let buffer_pointer = {
-            let mut hash_map_directory = self.0.lock().unwrap();
+            let mut hash_map_directory = self.0.lock().expect("Taking the lock should always work");
             hash_map_directory.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new())))).clone()
         };
-        let mut buffer_data = buffer_pointer.0.lock().unwrap();
+        let mut buffer_data = buffer_pointer.0.lock().expect("Taking the lock should always work");
         buffer_data.clear();
         buffer_data.extend_from_slice(data);
         Ok(())
@@ -190,7 +190,7 @@ impl TerminatingWrite for HashMapFile{
 
 impl Write for HashMapFile{
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize>{
-        self.0.lock().unwrap().extend_from_slice(buf);
+        self.0.lock().expect("Taking the lock should always work").extend_from_slice(buf);
         Ok(buf.len())
     }
     fn flush(&mut self) -> std::io::Result<()>{
@@ -200,14 +200,14 @@ impl Write for HashMapFile{
 
 impl HasLen for HashMapFile {
     fn len(&self) -> usize{
-        self.0.lock().unwrap().len()
+        self.0.lock().expect("Taking the lock should always work").len()
     }
 }
 impl FileHandle for HashMapFile {
     fn read_bytes(&self, range: Range<usize>) -> std::io::Result<OwnedBytes>{
 
         let bytes = self.0.lock()
-            .unwrap()
+            .expect("Taking the lock should always work")
             .get(range.clone())
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, format!("Trying to fetch data out of range: {range:?}")))?
             .to_owned();

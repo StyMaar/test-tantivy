@@ -2,6 +2,7 @@ mod hashmap_directory;
 mod index;
 mod utils;
 mod new_api;
+mod errors;
 
 pub use index::{Schema, Index, Document};
 pub use utils::set_panic_hook;
