@@ -53,10 +53,10 @@ impl SegmentBuilder {
     #[wasm_bindgen(constructor)]
     pub fn new(js_schema: JsValue, memory_arena_num_bytes: usize) -> Result<SegmentBuilder, String>{
         let schema: Schema = serde_wasm_bindgen::from_value(js_schema).map_err(|err| err.to_string())?;
-        SegmentBuilder::new_inner(schema, memory_arena_num_bytes)
+        SegmentBuilder::new_inner(&schema, memory_arena_num_bytes)
     }
 
-    fn new_inner(schema: Schema, memory_arena_num_bytes: usize) -> Result<SegmentBuilder, String>{
+    fn new_inner(schema: &Schema, memory_arena_num_bytes: usize) -> Result<SegmentBuilder, String>{
         let mut schema_builder = TantivySchema::builder();
 
         for (field_name, option) in schema.iter(){
@@ -338,7 +338,7 @@ impl Merger{
 mod test{
     use common_macros::hash_map;
 
-    use crate::{SegmentBuilder, SearchIndex};
+    use crate::{SegmentBuilder, SearchIndex, new_api::Merger};
 
     use super::{FieldPRoperties, SearchOption};
 
@@ -350,7 +350,7 @@ mod test{
                 "title".to_string() => FieldPRoperties{text: Some(true), stored: Some(true), ..Default::default()},
             };
 
-        let mut segment_builder = SegmentBuilder::new_inner(schema, 50_000_000).unwrap(); 
+        let mut segment_builder = SegmentBuilder::new_inner(&schema, 50_000_000).unwrap(); 
 
         segment_builder.add_document_inner(hash_map! {
           "id".to_string() => "0".to_string(),
@@ -382,6 +382,75 @@ mod test{
         assert_eq!(2, results.len());
         let results = search_index.search_inner("the", SearchOption{fields: vec!["body".to_string()], limit: 10}).unwrap();
         assert_eq!(3, results.len());
+    }
+
+    #[test]
+    fn merge_and_search(){
+        let schema = hash_map! {
+                "id".to_string() => FieldPRoperties{text: Some(true), ..Default::default()},
+                "body".to_string() => FieldPRoperties{text: Some(true), ..Default::default()},
+                "title".to_string() => FieldPRoperties{text: Some(true), stored: Some(true), ..Default::default()},
+            };
+
+        let mut segment_builder = SegmentBuilder::new_inner(&schema, 50_000_000).unwrap(); 
+
+        segment_builder.add_document_inner(hash_map! {
+          "id".to_string() => "0".to_string(),
+          "title".to_string() => "Lord Of The Rings".to_string(),
+          "body".to_string() => "And some things that should not have been forgotten were lost. History became legend. Legend became myth. And for two and a half thousand years, the ring passed out of all knowledge.".to_string(),
+        }).unwrap();
+        segment_builder.add_document_inner(hash_map! {
+          "id".to_string() => "1".to_string(),
+          "title".to_string() =>  "The Old Man and the Sea".to_string(),
+          "body".to_string() => r#"He was an old man who fished alone in a skiff in the Gulf Stream and 
+          he had gone eighty-four days now without taking a fish."#.to_string(),
+        }).unwrap();
+        segment_builder.add_document_inner(hash_map! {
+          "id".to_string() => "2".to_string(),
+          "title".to_string() => "Frankenstein".to_string(),
+          "body".to_string() => r#"You will rejoice to hear that no disaster has accompanied the commencement of an 
+          enterprise which you have regarded with such evil forebodings.  I arrived here 
+          yesterday, and my first task is to assure my dear sister of my welfare and 
+          increasing confidence in the success of my undertaking."#.to_string(),
+        }).unwrap();
+
+        let segment1 = segment_builder.finalize().unwrap();
+
+        let mut segment_builder = SegmentBuilder::new_inner(&schema, 50_000_000).unwrap();
+
+        segment_builder.add_document_inner(hash_map! {
+          "id".to_string() => "3".to_string(),
+          "title".to_string() => "Le seigneur des anneaux".to_string(),
+          "body".to_string() =>  "C'est une étrange fatalité que nous devions éprouver tant de peurs et de doutes, pour une si petite chose.".to_string(),
+        }).unwrap();
+        segment_builder.add_document_inner(hash_map! {
+          "id".to_string() => "12".to_string(),
+          "title".to_string() => "Of Mice and Men".to_string(),
+          "body".to_string() =>   r#"A few miles south of Soledad, the Salinas River drops in close to the hillside 
+          bank and runs deep and green. The water is warm too, for it has slipped twinkling 
+          over the yellow sands in the sunlight before reaching the narrow pool. On one 
+          side of the river the golden foothill slopes curve up to the strong and rocky 
+          Gabilan Mountains, but on the valley side the water is lined with trees—willows 
+          fresh and green with every spring, carrying in their lower leaf junctures the 
+          debris of the winter’s flooding; and sycamores with mottled, white, recumbent 
+          limbs and branches that arch over the pool"#.to_string(),
+        }).unwrap();
+        
+        let segment2 = segment_builder.finalize().unwrap();
+
+        let mut merger = Merger::new();
+        merger.add_segment(segment1).unwrap();
+        merger.add_segment(segment2).unwrap();
+
+        let merged_segment = merger.merge().unwrap();
+
+        let mut search_index = SearchIndex::new();
+        search_index.register_segment(merged_segment).unwrap();
+
+        let results = search_index.search_inner("the", SearchOption{fields: vec!["title".to_string()], limit: 10}).unwrap();
+        assert_eq!(2, results.len());
+        let results = search_index.search_inner("the", SearchOption{fields: vec!["body".to_string()], limit: 10}).unwrap();
+        assert_eq!(4, results.len());
     }
 
 }
