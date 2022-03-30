@@ -124,8 +124,10 @@ impl SegmentBuilder {
     pub fn finalize(mut self) -> Result<Segment, String> {
         self.writer.commit().map_err(|err| err.to_string())?;
         let searchable_doc_id = self.writer.index().searchable_segment_ids().map_err(|err| err.to_string())?;
-        self.writer.merge(&searchable_doc_id).map_err(|err| err.to_string())?;
-        self.writer.commit().map_err(|err| err.to_string())?; // TODO: voir avec François si cette façon de faire commit/merge/commit c'est logique
+        if searchable_doc_id.len() != 0 {
+            self.writer.merge(&searchable_doc_id).map_err(|err| err.to_string())?;
+            self.writer.commit().map_err(|err| err.to_string())?; // TODO: voir avec François si cette façon de faire commit/merge/commit c'est logique
+        } 
 
         Ok(Segment{
             directory: self.directory,
