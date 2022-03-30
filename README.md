@@ -9,7 +9,7 @@ TantivyJS is a WebAssembly port of [Tantivy](https://github.com/quickwit-oss/tan
 - Typescript types
 - Export and import of search index in a Uint8Array
 
-# ## Quick-start
+## Quick-start
 
 TantivyJS is usable on a [browser supporting WASM](https://caniuse.com/wasm) and with NodeJS. It's installable from npm with `npm install tantivy` and then usable like so:
 
@@ -107,4 +107,14 @@ const segment = segmentBuilder.finalize();
 
 ### SearchIndex
 
+TODO
 
+### Merger
+
+TODO
+
+## How to build
+
+You need the Rust toolchain and NodeJS/Yarn installed, then execute `yarn` to install the dependencies and `yarn build` to generate the `dist/` folder containing the built packages.
+
+To use the benchmarks, navigate to `benchmark/`, install deps with `yarn` and either launch the dev mode with `yarn dev` or build the project with `yarn build`.
