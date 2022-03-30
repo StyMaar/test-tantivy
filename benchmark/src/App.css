@@ -1,0 +1,10 @@
+.App {
+  max-width: 1200px;
+  padding: 2em;
+  margin: auto;
+}
+
+.Benchmark {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+}

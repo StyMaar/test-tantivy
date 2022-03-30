@@ -55,7 +55,7 @@ impl SegmentBuilder {
         let mut schema_builder = TantivySchema::builder();
 
         for (field_name, option) in schema.iter(){
-            
+
             // TODO implement the field options in a way that makes sense
             let mut field_option = TextOptions::default();
             // if option.fast.unwrap_or_default() {
@@ -141,7 +141,7 @@ impl Segment {
 pub fn merge_segment(segments: Vec<Segment>) -> Segment{
     // il faut ajouter à la main les fichiers des directory des segments n°N (avec n>0) dans le directory du segment n=0
     todo!()
-} 
+}
 
 #[wasm_bindgen]
 pub struct SearchIndex {
@@ -163,8 +163,8 @@ impl SearchIndex {
     pub fn register_segment(&mut self, segment: Segment){
 
         if let Some(ref mut directory) = self.directory {
-            let this_index = TantivyIndex::open_from_dir(directory.clone()).unwrap();
-            let index_to_add = TantivyIndex::open_from_dir(segment.directory.clone()).unwrap();
+            let this_index = TantivyIndex::open(directory.clone()).unwrap();
+            let index_to_add = TantivyIndex::open(segment.directory.clone()).unwrap();
 
             let mut this_meta = this_index.load_metas().unwrap();
             let segments_to_add = index_to_add.load_metas().unwrap().segments;
@@ -183,22 +183,22 @@ impl SearchIndex {
             self.directory = Some(segment.directory);
         }
     }
-    
+
     // TODO définir la gestion d'erreur: qu'est-ce qu'on fait si on essaie de supprimer quelque chose qui n'est pas dans le directory
     #[wasm_bindgen(js_name = "removeSegment")]
     pub fn remove_segment(&mut self, segment: Segment){
 
         if let Some(ref mut directory) = self.directory {
-            let this_index = TantivyIndex::open_from_dir(directory.clone()).unwrap();
-            let index_to_remove = TantivyIndex::open_from_dir(segment.directory.clone()).unwrap();
-    
+            let this_index = TantivyIndex::open(directory.clone()).unwrap();
+            let index_to_remove = TantivyIndex::open(segment.directory.clone()).unwrap();
+
             let mut this_meta = this_index.load_metas().unwrap();
             let segments_to_remove = &index_to_remove.load_metas().unwrap().segments;
-    
+
             for to_remove in segments_to_remove {
                 this_meta.segments.retain(|segment| to_remove.id() == segment.id());
             }
-    
+
             directory.atomic_write(Path::new("meta.json"), &serde_json::to_vec(&this_meta).unwrap());
             directory.remove_directory(segment.directory)
         }
@@ -208,7 +208,7 @@ impl SearchIndex {
     pub fn search(&self, query: &str, js_option: JsValue)-> JsValue{
         let option: SearchOption = serde_wasm_bindgen::from_value(js_option).unwrap();
         if let Some(ref directory) = self.directory {
-            let index = TantivyIndex::open_from_dir(directory.clone()).unwrap();
+            let index = TantivyIndex::open(directory.clone()).unwrap();
             let reader = index
                 .reader_builder()
                 .reload_policy(ReloadPolicy::Manual)
@@ -282,7 +282,7 @@ impl Merger{
             },
             _ => {
                 // we need to create a TantivyIndex, to create a writer in order to perform the merge.
-                let tantivy_index = TantivyIndex::open_from_dir(self.search_index.directory.clone().unwrap()).unwrap();
+                let tantivy_index = TantivyIndex::open(self.search_index.directory.clone().unwrap()).unwrap();
                 let mut writer = tantivy_index.writer(50_000_000).unwrap();
                 let searchable_doc_id = writer.index().searchable_segment_ids().unwrap();
                 writer.merge(&searchable_doc_id).unwrap();
@@ -293,5 +293,5 @@ impl Merger{
                 }
             }
         }
-    } 
+    }
 }
