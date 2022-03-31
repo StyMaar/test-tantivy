@@ -23,6 +23,8 @@ use tantivy::{
     collector::TopDocs,
     query::QueryParser,
     ReloadPolicy, IndexWriter as TantivyIndexWriter, Directory, Term,
+    SegmentWriter,
+    Segment as TantivySegment,
 };
 
 use crate::hashmap_directory::{HashMapDirectory, SerializableHashMapDirectory};
@@ -46,7 +48,10 @@ pub struct SegmentBuilder {
     // to get the schema from an index: index.schema() (writer.index().schema())
     writer: TantivyIndexWriter,
     directory: HashMapDirectory,
+    segment_writer: SegmentWriter,
+    segment: TantivySegment,
 }
+
 
 #[wasm_bindgen]
 impl SegmentBuilder {
@@ -86,9 +91,13 @@ impl SegmentBuilder {
         let tantivy_index = TantivyIndex::builder().schema(tantivy_schema).open_or_create(directory.clone()).map_err(|err| err.to_string())?;
         let writer = tantivy_index.writer(memory_arena_num_bytes).map_err(|err| err.to_string())?;
 
+        let (segment_writer, segment) = writer.get_segment_writer_and_segment().map_err(|err| err.to_string())?;
+
         Ok(SegmentBuilder {
             writer,
             directory,
+            segment_writer,
+            segment,
         })
     }
 
@@ -107,7 +116,7 @@ impl SegmentBuilder {
             tantivy_doc.add_text(field, data);
         }
 
-        self.writer.add_document(tantivy_doc).map_err(|err| err.to_string())?;
+        self.writer.add_document_to_segment_writer(&mut self.segment_writer, tantivy_doc).map_err(|err| err.to_string())?;
         Ok(())
     }
 
@@ -122,12 +131,13 @@ impl SegmentBuilder {
         Ok(())
     }
     pub fn finalize(mut self) -> Result<Segment, String> {
+        self.writer.finalize_document_addition(self.segment_writer, self.segment).map_err(|err| err.to_string())?;
         self.writer.commit().map_err(|err| err.to_string())?;
-        let searchable_doc_id = self.writer.index().searchable_segment_ids().map_err(|err| err.to_string())?;
-        if searchable_doc_id.len() != 0 {
-            self.writer.merge(&searchable_doc_id).map_err(|err| err.to_string())?;
-            self.writer.commit().map_err(|err| err.to_string())?; // TODO: voir avec François si cette façon de faire commit/merge/commit c'est logique
-        } 
+        // let searchable_doc_id = self.writer.index().searchable_segment_ids().map_err(|err| err.to_string())?;
+        // if searchable_doc_id.len() != 0 {
+        //     self.writer.merge(&searchable_doc_id).map_err(|err| err.to_string())?;
+        //     self.writer.commit().map_err(|err| err.to_string())?; // TODO: voir avec François si cette façon de faire commit/merge/commit c'est logique
+        // } 
 
         Ok(Segment{
             directory: self.directory,
