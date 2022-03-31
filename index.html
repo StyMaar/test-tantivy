@@ -4,13 +4,15 @@
   </head>
   <body>
     <script type="module">
-      import init, { SegmentBuilder, Segment, SearchIndex, set_panic_hook, Merger } from './pkg/test_tantivy.js';
+      import init, { SegmentBuilder, Segment, SearchIndex, set_panic_hook, Merger, setupLogs } from './pkg/test_tantivy.js';
 
       async function run() {
         
+
         // modes
         await init();
         set_panic_hook();
+        setupLogs();
         // And afterwards we can use all the functionality defined in wasm.
 
         const schema = {

@@ -8,8 +8,9 @@ use bytecheck::CheckBytes;
 
 use core::fmt::Write as fmtWrite;
 
-use crate::{log, log3};
 use sha1::{Sha1, Digest};
+
+use log::{trace};
 
 
 #[derive(Debug, Archive, Serialize, Deserialize)]
@@ -83,18 +84,18 @@ impl HashMapDirectory {
     }
 
     pub fn summary(&self){
-        log("----- Directory: FILE LIST","");
+        trace!("----- Directory: FILE LIST");
         for (path, file) in self.0.lock().expect("Taking the lock should always work").iter() {
             if path == Path::new("meta.json") {
                 let file_content = file.0.lock().expect("Taking the lock should always work");
                 let file_str = std::str::from_utf8(&file_content).expect("Converting the meta.json file to utf-8 string should never fail");
-                log("--------------------------: meta.json", file_str);
+                trace!("--------------------------: meta.json: {file_str}");
             }else{
                 let mut hasher = Sha1::new();
                 let content = file.0.lock().expect("Taking the lock should always work");
                 hasher.update(&*content);
                 let hex = to_hex_string(&hasher.finalize());
-                log3("--------------------------: file", path.to_str().expect("Converting the path to utf-8 string should never fail"), &hex);
+                trace!("--------------------------: file {}, {}", path.to_str().expect("Converting the path to utf-8 string should never fail"), &hex);
             }
         }
     }
@@ -112,7 +113,7 @@ impl Directory for HashMapDirectory {
         path: &Path
     ) -> Result<Box<dyn FileHandle>, OpenReadError>{
 
-        log("----- Directory: get_file_handle", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        trace!("----- Directory: get_file_handle: {}", path.to_str().expect("Converting the path to utf-8 string should never fail"));
         match self.0.lock().expect("Taking the lock should always work").get(path) {
             None => Err(OpenReadError::FileDoesNotExist(path.into())),
             Some(buffer_pointer) => {
@@ -122,7 +123,7 @@ impl Directory for HashMapDirectory {
     }
     
     fn delete(&self, path: &Path) -> Result<(), DeleteError>{
-        log("----- Directory: delete", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        trace!("----- Directory: delete {}", path.to_str().expect("Converting the path to utf-8 string should never fail"));
         let ret = match self.0.lock().expect("Taking the lock should always work").remove(path) {
             None => Err(DeleteError::FileDoesNotExist(path.into())),
             Some(_) => {
@@ -134,19 +135,19 @@ impl Directory for HashMapDirectory {
     }
     
     fn exists(&self, path: &Path) -> Result<bool, OpenReadError>{
-        log("----- Directory: exists", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        trace!("----- Directory: exists {}", path.to_str().expect("Converting the path to utf-8 string should never fail"));
         Ok(self.0.lock().expect("Taking the lock should always work").contains_key(path))
     }
     
     fn open_write(&self, path: &Path) -> Result<WritePtr, OpenWriteError>{
-        log("----- Directory: open_write", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        trace!("----- Directory: open_write {}", path.to_str().expect("Converting the path to utf-8 string should never fail"));
         let mut hash_map_directory = self.0.lock().expect("Taking the lock should always work");
         let buffer_pointer = hash_map_directory.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new()))));        
         Ok(BufWriter::new(Box::new(buffer_pointer.clone())))
     }
     
     fn atomic_read(&self, path: &Path) -> Result<Vec<u8>, OpenReadError>{
-        log("----- Directory: atomic_read", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        trace!("----- Directory: atomic_read {}", path.to_str().expect("Converting the path to utf-8 string should never fail"));
         match self.0.lock().expect("Taking the lock should always work").get(path) {
             None => Err(OpenReadError::FileDoesNotExist(path.into())),
             Some(buffer_pointer) => {
@@ -156,7 +157,7 @@ impl Directory for HashMapDirectory {
     }
     
     fn atomic_write(&self, path: &Path, data: &[u8]) -> std::io::Result<()>{
-        log("----- Directory: atomic_write", path.to_str().expect("Converting the path to utf-8 string should never fail"));
+        trace!("----- Directory: atomic_write {}", path.to_str().expect("Converting the path to utf-8 string should never fail"));
         let buffer_pointer = {
             let mut hash_map_directory = self.0.lock().expect("Taking the lock should always work");
             hash_map_directory.entry(path.to_path_buf()).or_insert(HashMapFile(Arc::new(Mutex::new(Vec::new())))).clone()
@@ -168,12 +169,12 @@ impl Directory for HashMapDirectory {
     }
     
     fn watch(&self, _watch_callback: WatchCallback) -> tantivy::Result<WatchHandle>{
-        log("----- Directory: watch", "");
+        trace!("----- Directory: watch");
         Ok(WatchHandle::empty())
     }
     
     fn sync_directory(&self) -> Result<(), std::io::Error> {
-        log("----- Directory: sync_directory", "");
+        trace!("----- Directory: sync_directory");
         Ok(()) 
     }
 

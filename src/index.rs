@@ -1,6 +1,7 @@
 
 use std::collections::HashMap;
 
+use log::trace;
 use tantivy::{
     schema::{
         Schema as TantivySchema,
@@ -26,8 +27,6 @@ use bytecheck::CheckBytes;
 
 use super::hashmap_directory::{HashMapDirectory, SerializableHashMapDirectory};
 use wasm_bindgen::prelude::*;
-
-use crate::log;
 
 #[wasm_bindgen]
 #[derive(Archive, Serialize, Deserialize, Clone, SerdeSerialize, SerializeDeserialize)]
@@ -62,14 +61,14 @@ impl Schema {
     
     #[wasm_bindgen(js_name = "addField")]
     pub fn add_field(&mut self, field_name: &str, js_field: JsValue){
-        log("addField", field_name);
+        trace!("addField, {}", field_name);
         let field = serde_wasm_bindgen::from_value(js_field).unwrap(); //TODO handle error here
         self.fields.insert(field_name.to_string(), field);
     }
 
 
     fn build_schema(&self)-> TantivySchema{
-        log("build_schema", "");
+        trace!("build_schema {}", "");
         let mut schema_builder = TantivySchema::builder();
         for (field_name, option) in self.fields.iter(){
             
@@ -137,7 +136,7 @@ impl Index {
     pub fn from_schema(schema: Schema) -> Index{
         let directory= HashMapDirectory::new();
         let tantivy_schema = schema.build_schema();
-        log("createIndexFromSchema", "");
+        trace!("createIndexFromSchema");
         let tantivy_index = TantivyIndex::builder().schema(tantivy_schema.clone()).open_or_create(directory.clone()).unwrap();
 
         Index { tantivy_index, tantivy_schema, schema, directory }
@@ -154,7 +153,7 @@ impl Index {
     }
 
     pub fn writer(self, memory_arena_num_bytes: usize) -> IndexWriter{
-        log("createIndexWriter", "");
+        trace!("createIndexWriter");
         let writer = self.tantivy_index.writer(memory_arena_num_bytes).unwrap(); // TODO handle error
         IndexWriter{
             index: self,
@@ -207,12 +206,12 @@ impl IndexWriter {
     #[wasm_bindgen(js_name = "addDocument")]
     pub fn add_document(&mut self, doc: Document){
         let tantivy_doc = doc.get_tantivy_document(&self.index.tantivy_schema);// TODO est-ce que c'est pertinent de le re-créer à chaque fois
-        log("addDocument", "");
+        trace!("addDocument");
         self.writer.add_document(tantivy_doc).unwrap(); // TODO handle errors
     }
     
     pub fn commit(mut self) -> Index {
-        log("commitIndexWriter", "");
+        trace!("commitIndexWriter");
         self.writer.commit().unwrap();// TODO handle errors
         self.index
     }
@@ -241,7 +240,7 @@ pub struct Document{
 #[wasm_bindgen]
 impl Document{
     fn get_tantivy_document(self, tantivy_schema: &TantivySchema) -> TantivyDocument{
-        log("getTantivyDocument", "");
+        trace!("getTantivyDocument");
         let mut doc = TantivyDocument::default();
         for (field_name, data) in self.texts {
             let field = tantivy_schema.get_field(&field_name).unwrap(); //TODO deal with errors here

@@ -5,29 +5,22 @@ mod new_api;
 mod errors;
 
 pub use index::{Schema, Index, Document};
+use log::Level;
 pub use utils::set_panic_hook;
 
 pub use new_api::{SegmentBuilder, Segment, SearchIndex};
 
 use wasm_bindgen::prelude::*;
 
-#[cfg(not(test))]
-#[wasm_bindgen]
-extern "C" {
-    // Use `js_namespace` here to bind `console.log(..)` instead of just
-    // `log(..)`
-    #[wasm_bindgen(js_namespace = console)]
-    pub fn log(s1: &str, s2: &str);
-
-    #[wasm_bindgen(js_namespace = console, js_name=log)]
-    pub fn log3(s1: &str, s2: &str, s3: &str);
-}
-
-#[cfg(test)]
-pub fn log(s1: &str, s2: &str){
-    println!("{s1:#?}, {s2:#?}")
-}
-#[cfg(test)]
-pub fn log3(s1: &str, s2: &str, s3: &str){
-    println!("{s1:#?}, {s2:#?}, {s3:#?}")
+#[wasm_bindgen(js_name = "setupLogs")]
+pub fn setup_logs(module_prefix: Option<String>){
+    let mut wasm_logger_cfg = wasm_logger::Config::new(Level::Trace).message_on_new_line();
+    match module_prefix {
+        Some(module_prefix) => {
+           wasm_logger_cfg = wasm_logger_cfg.module_prefix(&module_prefix);
+        }
+        _ => {},   
+    }
+    wasm_logger::init(wasm_logger_cfg);
+    
 }
