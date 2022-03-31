@@ -28,7 +28,10 @@
     "dist"
   ],
   "scripts": {
-    "build": "wasm-pack build -t web --out-dir ../src/pkg crate && rm -rf dist/ && rollup -c && cp src/pkg/tantivy_js_bg.wasm dist/tantivy.wasm",
+    "build": "yarn run build:wasm && rm -rf dist/ && rollup -c && cp src/pkg/tantivy_js_bg.wasm dist/tantivy.wasm",
+    "build:dev": "yarn run build:wasm:dev && rm -rf dist/ && rollup -c && cp src/pkg/tantivy_js_bg.wasm dist/tantivy.wasm",
+    "build:wasm": "wasm-pack build -t web --release --mode no-install --out-dir ../src/pkg crate",
+    "build:wasm:dev": "wasm-pack build -t web --dev --out-dir ../src/pkg crate",
     "build:minify": "npm run build && npx terser@latest --compress --mangle --output dist/cjs/index.cjs -- dist/cjs/index.cjs",
     "pretest": "npm run build",
     "test": "exit 0",

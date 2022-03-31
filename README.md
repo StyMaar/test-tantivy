@@ -115,6 +115,6 @@ TODO
 
 ## How to build
 
-You need the Rust toolchain and NodeJS/Yarn installed, then execute `yarn` to install the dependencies and `yarn build` to generate the `dist/` folder containing the built packages.
+You need the Rust toolchain, [Binaryen](https://github.com/WebAssembly/binaryen) and NodeJS/Yarn installed, then execute `yarn` to install the dependencies and `yarn build` to generate the `dist/` folder containing the built packages.
 
 To use the benchmarks, navigate to `benchmark/`, install deps with `yarn` and either launch the dev mode with `yarn dev` or build the project with `yarn build`.
