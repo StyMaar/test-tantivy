@@ -1,7 +1,6 @@
-// import {initialize} from '../../../dist/es-slim/index_slim';
-import {initialize} from '../../..';
+import {initialize} from '../../../dist/es-slim/index_slim';
 
-// import wasm from '../../../dist/tantivy.wasm?url';
+import wasm from '../../../dist/tantivy.wasm?url';
 
 let initialized = false;
 export const initializeTantivy = async () => {
@@ -9,9 +8,10 @@ export const initializeTantivy = async () => {
     return;
   }
   await initialize({
-    // wasm
+    wasm
   });
   initialized = true;
 }
 
 
+export * from '../../../dist/es-slim/index_slim';
