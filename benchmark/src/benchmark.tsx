@@ -11,11 +11,8 @@ export const Benchmark = (props: {
 
   return (
     <div className="Benchmark">
-      <p>{props.definition.title}</p>
-      <div>
-        <pre>{stats}</pre>
-        {metadata && <pre>{metadata}</pre>}
-      </div>
+      <pre className="benchmarkStats">{stats}</pre>
+      {metadata && <pre className="benchmarkMeta">{metadata}</pre>}
     </div>
   )
 }

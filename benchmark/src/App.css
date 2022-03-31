@@ -5,6 +5,26 @@
 }
 
 .Benchmark {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.benchmarks {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  row-gap: 2em;
+}
+
+.benchmarkCaseTitle {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+}
+
+.benchmarkSuiteTitle {
+  grid-row: 1;
+}
+
+.benchmarkMeta, .benchmarkStats {
+  margin: 0;
 }

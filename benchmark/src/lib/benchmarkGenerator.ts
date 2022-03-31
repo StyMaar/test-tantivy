@@ -1,6 +1,5 @@
-import { SegmentBuilder, Segment, SearchIndex, IndexSchema } from '../../..';
 import { randomWords } from './randomWords';
-import { initializeTantivy } from './tantivy';
+import { initializeTantivy, SegmentBuilder, Segment, SearchIndex, IndexSchema } from './tantivy';
 
 const schema: IndexSchema<'id' | 'title' | 'body'> = {
   id: {
@@ -33,8 +32,7 @@ export interface BenchmarkDefinition {
 export const generateBenchmarks = ({
   documentCount = 1000,
   wordPerDocument = 1000,
-} = {}) => {
-
+}) => {
   const benchmarks: BenchmarkDefinition[] = [{
     title: 'Initialize TantivyJS',
     executor: initializeTantivy
@@ -64,7 +62,7 @@ export const generateBenchmarks = ({
     title: 'Export a segment',
     executor: (state) => {
       state.exportedSegment = state.segment.export();
-      return `Exported size: ${state.exportedSegment.byteLength} bytes`
+      return `Exported size: ${state.exportedSegment.byteLength} bytes, size per document: ${Math.round(state.exportedSegment.byteLength / documentCount)}`
     }
   }, {
     title: 'Import an exported segment',
@@ -84,7 +82,7 @@ export const generateBenchmarks = ({
   }, {
     title: 'Execute a search query',
     executor: (state) => {
-      const res = state.searchIndex.search('title', {fields: ['id', 'title', 'body'], limit: 10});
+      const res = state.searchIndex.search('the', {fields: ['id', 'title', 'body'], limit: 10});
       return `Found ${res.length} documents matching the query`;
     }
   }];
