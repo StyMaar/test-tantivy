@@ -65,7 +65,7 @@ impl SegmentBuilder {
         let mut schema_builder = TantivySchema::builder();
 
         for (field_name, option) in schema.iter(){
-            
+
             // TODO implement the field options in a way that makes sense
             let mut field_option = TextOptions::default();
             // if option.fast.unwrap_or_default() {
@@ -171,7 +171,7 @@ impl Segment {
 pub fn merge_segment(segments: Vec<Segment>) -> Segment{
     // il faut ajouter à la main les fichiers des directory des segments n°N (avec n>0) dans le directory du segment n=0
     todo!()
-} 
+}
 
 #[wasm_bindgen]
 pub struct SearchIndex {
@@ -214,7 +214,7 @@ impl SearchIndex {
         }
         Ok(())
     }
-    
+
     // TODO définir la gestion d'erreur: qu'est-ce qu'on fait si on essaie de supprimer quelque chose qui n'est pas dans le directory
     #[wasm_bindgen(js_name = "removeSegment")]
     pub fn remove_segment(&mut self, segment: Segment)-> Result<(), String>{
@@ -222,14 +222,14 @@ impl SearchIndex {
         if let Some(ref mut directory) = self.directory {
             let this_index = TantivyIndex::open(directory.clone()).map_err(|err| err.to_string())?;
             let index_to_remove = TantivyIndex::open(segment.directory.clone()).map_err(|err| err.to_string())?;
-    
+
             let mut this_meta = this_index.load_metas().map_err(|err| err.to_string())?;
             let segments_to_remove = &index_to_remove.load_metas().map_err(|err| err.to_string())?.segments;
-    
+
             for to_remove in segments_to_remove {
                 this_meta.segments.retain(|segment| to_remove.id() == segment.id());
             }
-    
+
             directory.atomic_write(Path::new("meta.json"), &serde_json::to_vec(&this_meta).map_err(|err| err.to_string())?).map_err(|err| err.to_string())?;
             directory.remove_directory(segment.directory);
         }

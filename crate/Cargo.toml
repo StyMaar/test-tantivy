@@ -1,5 +1,5 @@
 [package]
-name = "test-tantivy"
+name = "tantivy-js"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,7 +10,8 @@ wasm-opt = false
 wasm-opt = false
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = false
+wasm-opt = ["-Oz"]
+lto = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -18,7 +19,8 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tantivy = {path="../tantivy", default-features = false, features = ["lz4-compression"]}
+# tantivy = {path="../../tantivy", default-features = false, features = ["lz4-compression"]}
+tantivy = {git = "https://github.com/skiff-org/tantivy", branch = "wasm-ready-main", default-features = false, features = ["lz4-compression"]}
 tempfile = "3.3.0"
 getrandom = {version = "0.2.5", features=["js"]}
 uuid = {version = "0.8.2", features = ["stdweb"]}

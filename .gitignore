@@ -1,2 +1,5 @@
-/target
-Cargo.lock
+/crate/target
+/crate/Cargo.lock
+dist
+src/pkg
+node_modules

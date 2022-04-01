@@ -1,0 +1,30 @@
+.App {
+  max-width: 1200px;
+  padding: 2em;
+  margin: auto;
+}
+
+.Benchmark {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.benchmarks {
+  display: grid;
+  row-gap: 2em;
+}
+
+.benchmarkCaseTitle {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+}
+
+.benchmarkSuiteTitle {
+  grid-row: 1;
+}
+
+.benchmarkMeta, .benchmarkStats {
+  margin: 0;
+}
